@@ -3,10 +3,10 @@
 */
 #include <Adafruit_NeoPixel.h> //https://github.com/adafruit/Adafruit_NeoPixel
 #include "Constants.h"
-
 Adafruit_NeoPixel strip(WS2812_Leds, WS2812_Pin, NEO_RGB + NEO_KHZ800);
+#include "Trigger.h"
 
-void setup() 
+void setup()
 {
   pinMode(TeamSelect_R_Pin, INPUT_PULLUP);
   pinMode(TeamSelect_G_Pin, INPUT_PULLUP);
@@ -15,12 +15,17 @@ void setup()
   strip.begin();
   strip.setPixelColor(0, strip.Color(128, 128, 128));
   strip.show();
+
+  Serial.begin(115200);
+  EnableTrigger();
 }
 
-void loop() {
+void loop() 
+{
   byte selectedTeam;
   selectedTeam = readTeamSelector();
   setTeamLED(selectedTeam);
+  strip.show();
 }
 
 void setTeamLED(byte team)
@@ -38,7 +43,6 @@ void setTeamLED(byte team)
       break;
   }
   strip.setPixelColor(0, teamColor);
-  strip.show();
 }
 
 byte readTeamSelector()
