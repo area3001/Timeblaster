@@ -22,9 +22,10 @@ ISR(PCINT0_vect)
 
   if (trigger == 0)
   {
+    IrSend(0x55005500);
     for (byte i = 1; i < 5; i++) strip.setPixelColor(i, WhiteRGB);
   } else
-  {
+  {    
     for (byte i = 1; i < 5; i++) strip.setPixelColor(i, BlackRGB);
   }
 }

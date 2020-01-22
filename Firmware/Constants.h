@@ -5,6 +5,16 @@ const byte TeamSelect_G_Pin = 3;
 const byte TeamSelect_B_Pin = 4;
 
 /*
+PORTB 0b00000010
+*/
+const byte IrOut1_Pin = 9;
+
+const byte IrOut2_Pin = 11; //Not used in this firmware
+const byte IrIn1_Pin = 5;
+const byte IrIn2_Pin = 6;
+const byte Buzzer_Pin = A5;
+
+/*
 when changing the trigger pin also update PCICR and PCMSK0
 in the EnableTrigger() and DisableTrigger() functions
 */
