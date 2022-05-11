@@ -16,8 +16,10 @@ volatile int last_pulse = -1;
 volatile uint8_t data = 0;
 
 void setup()
-{
+{  
   Serial.begin(115200);
+
+  blinkIfNoTeamSelector(); //This is only used when flashing the mc
 
   Communications::init();
   Communications::enableIrReceive();
@@ -181,4 +183,24 @@ ISR(TIMER2_COMPA_vect)
   //   byte ir1_pin_state = digitalRead(IR_IN1_PIN);
   //   data_in_ir1.process_state(ir1_pin_state);
   // }
+}
+
+
+/* This is to give a visual signal that the firmware is flashed successfully when bulk uploading.
+ * This has no use after flashing.
+ */
+void blinkIfNoTeamSelector()
+{
+  pinMode(R_TEAM_PIN, INPUT_PULLUP);
+  pinMode(G_TEAM_PIN, INPUT_PULLUP);
+  pinMode(B_TEAM_PIN, INPUT_PULLUP);
+  pinMode(A0, OUTPUT);
+  while (!(digitalRead(R_TEAM_PIN) | digitalRead(G_TEAM_PIN) | digitalRead(B_TEAM_PIN)))
+  {
+    digitalWrite(A0, HIGH);
+    delay(500);
+    digitalWrite(A0, LOW);
+    delay(500);
+  }
+  pinMode(A0, INPUT_PULLUP);
 }
