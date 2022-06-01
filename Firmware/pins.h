@@ -55,7 +55,7 @@
 #error Invalid HARDWARE_VERSION
 #endif
 
-typedef enum TeamName
+/*typedef enum TeamName
 {
   eNoTeam = 0,
   eTeamRex = 1,
@@ -65,13 +65,13 @@ typedef enum TeamName
   eTeamYellow = 3,
   eTeamAzure = 6,
   eTeamWhite = 7
-};
+};*/
 
-TeamName blasterTeam = eNoTeam;
-TeamName badgeTeam = eNoTeam;
+uint8_t blasterTeam = 0;
+uint8_t badgeTeam = 0;
 bool teamLocked = false;
 
-TeamName getHardwareTeam()
+uint8_t getHardwareTeam()
 {
   pinMode(R_TEAM_PIN, INPUT_PULLUP);
   pinMode(G_TEAM_PIN, INPUT_PULLUP);
@@ -97,7 +97,7 @@ bool teamChanged()
   }
   else
   {
-    TeamName hardwareTeam = getHardwareTeam();
+    uint8_t hardwareTeam = getHardwareTeam();
     if (hardwareTeam != 0 && blasterTeam != hardwareTeam)
     {
       blasterTeam = hardwareTeam;
@@ -107,7 +107,7 @@ bool teamChanged()
   }
 }
 
-void lockTeam(TeamName newTeam)
+void lockTeam(uint8_t newTeam)
 {
   badgeTeam = newTeam;
   teamLocked = true;

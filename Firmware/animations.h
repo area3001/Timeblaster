@@ -54,17 +54,17 @@ void blaster_start()
 
 
 
-void team_switch(TeamName team)
+void team_switch(uint8_t team)
 {
   switch (team) 
   {
-    case eTeamRex:
+    case 0b001:
       Leds.setPixelColor(0,0xFF0000);
       break;
-    case eTeamGiggle:
+    case 0b010:
      Leds.setPixelColor(0,0x00FF00);
       break;
-    case eTeamBuzz:
+    case 0b100:
      Leds.setPixelColor(0,0x0000FF);
       break;
     }  
@@ -76,16 +76,16 @@ void team_switch(TeamName team)
   Buzzer.playFrequency(0);
 };
 
-void shoot(TeamName team)
+void shoot(uint8_t team)
 {
   int mod = team * 2;
   uint32_t color;
 
-  if (team == eTeamRex)
+  if (team == 0b001)
     color = 0x00FF0000;
-  if (team == eTeamGiggle)
+  if (team == 0b010)
     color = 0x0000FF00;
-  if (team == eTeamBuzz)
+  if (team == 0b100)
     color = 0x000000FF;
 
   for (int i = 0; i < 2 * mod; i++)
@@ -131,11 +131,11 @@ void crash(int team)
 
   uint32_t color;
 
-  if (team == eTeamRex)
+  if (team == 0b001)
     color = 0x00FF0000;
-  if (team == eTeamGiggle)
+  if (team == 0b010)
     color = 0x0000FF00;
-  if (team == eTeamBuzz)
+  if (team == 0b100)
     color = 0x000000FF;
 
   Leds.setDiskColor(1,color);

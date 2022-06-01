@@ -6,6 +6,7 @@
 #include "badgelink.h"
 #include "animations.h"
 #include "communications.h"
+#include "data.h"
 
 volatile int8_t pulse_pointer = 0;            // which pulse are we transmitting
 volatile int pulse_train[pulse_train_lenght]; // list of pulse lenghts to send
@@ -18,6 +19,21 @@ volatile uint8_t data = 0;
 void setup()
 {  
   Serial.begin(115200);
+
+  DataPacket d;
+  d.team = eTeamRex;
+  d.trigger_state = 1;
+  d.command = eCommandChatter;
+  d.parameter = 12;
+
+  DataPacket d2 = Data.calculateCRC(d);
+  DataPacket d3 = Data.calculateCRC(d2);
+  Serial.println(d.raw,BIN);  
+  Serial.println(d2.raw,BIN);  
+  Serial.println(d3.raw,BIN);
+
+  Serial.println();
+  while(true);
 
   blinkIfNoTeamSelector(); //This is only used when flashing the mc
 
@@ -32,7 +48,8 @@ void setup()
   setup_ir_carrier();
 
   Animations::setup();
-  
+
+  Animations::mute();
   if (triggerPressed())
   {
     Animations::mute();
