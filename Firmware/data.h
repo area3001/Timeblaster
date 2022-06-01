@@ -49,13 +49,38 @@ union DataPacket
   };
 };
 
+enum DeviceType
+{
+  eInfrared = 0b01,
+  eBadge = 0b10,
+  eAllDevices = 0b11,
+};
+
+class DataReader
+{
+  private:
+    volatile uint32_t refTime;
+    volatile bool oldState;
+    volatile uint16_t rawData;
+    volatile uint8_t bitsRead;
+    volatile bool dataReady;
+  public:
+    DataReader();
+    void stopReading();
+};
+
 class _data
 { 
   private:
     _data();
+    DataReader ir1_reader;
+    DataReader ir2_reader;
+    DataReader badge_reader;
   public:
     static _data &getInstance();
     DataPacket calculateCRC(DataPacket packet);
+    void transmit(DataPacket packet, DeviceType device);
+    void disable_receive(DeviceType device);
 };
 
 extern _data &Data;

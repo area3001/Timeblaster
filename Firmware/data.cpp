@@ -1,10 +1,21 @@
 #include "data.h"
 #include <Arduino.h>
 
+
+  DataReader::DataReader()
+  {
+  }
+  void DataReader::stopReading()
+  {
+  }
+
+
 //Private
 _data::_data()
 {
-  // nop
+    ir1_reader.stopReading();
+    ir2_reader.stopReading();
+    badge_reader.stopReading();
 }
 
 // Public
@@ -15,6 +26,10 @@ static _data &_data::getInstance()
 }
 
 
+/* Calculate the 4-bit CRC and xor it with the existing CRC. 
+ * For new packages it add the CRC 
+ * For existing packages it will set the CRC to 0 if the existing CRC was correct.
+*/
 DataPacket _data::calculateCRC(DataPacket packet)
 {
   bool crc[] = {0,0,0,0};
@@ -43,6 +58,35 @@ DataPacket _data::calculateCRC(DataPacket packet)
   bitWrite(packet.crc, 3, crc[3] ^ bitRead(packet.crc,3));
   
   return packet;
+}
+
+void _data::transmit(DataPacket packet, DeviceType device)
+{
+  // 1) Disable Receiving for each device
+  disable_receive(device);
+  
+  // 2) Clear and recalculate CRC
+  packet.crc = 0;
+  packet = calculateCRC(packet);
+  
+  // 3) Calculate output buffer(s)
+  // 4) Enable transmit and wait
+  // 5) Clean receiving buffers
+  // 6) Enable Receiving on selected devices
+}
+
+void _data::disable_receive(DeviceType device)
+{
+  if (device & eInfrared) 
+  {
+    //set receive to false
+    //clear buffer pointer
+  }
+  if (device & eBadge)
+  {
+    //set receive to false
+    //clear buffer pointer
+  }
 }
 
 _data &Data = Data.getInstance();
