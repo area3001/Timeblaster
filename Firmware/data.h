@@ -76,6 +76,7 @@ class _data
     DataReader ir1_reader;
     DataReader ir2_reader;
     DataReader badge_reader;
+    void setup_ir_carrier();
   public:
     static _data &getInstance();
     DataPacket calculateCRC(DataPacket packet);

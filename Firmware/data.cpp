@@ -18,6 +18,24 @@ _data::_data()
     badge_reader.stopReading();
 }
 
+void _data::setup_ir_carrier()
+{
+  /* Setup Timer 1 to toggle the IR-LED D1 at 38khz
+     This will generate a wave of approximately 38.1khz.
+     http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
+  */
+  cli();              // Stop interrupts while we set up the timer
+  TCCR1B = B00000000; // Stop Timer/Counter1 clock by setting the clock source to none.
+  TCCR1A = B00000000; // Set Timer/Counter1 to normal mode.
+  TCNT1 = 0;          // Set Timer/Counter1 to 0
+  OCR1A = 209; // = 16000000 / (1 * 76190.47619047618) - 1 (must be <65536)
+  TCCR1A = B01000100; // Set Timer/Counter1 to CTC mode. Set OC1A to toggle.
+  TCCR1B |= (1 << WGM12);
+  TCCR1B |= (0 << CS12) | (0 << CS11) | (1 << CS10);
+  sei();              // allow interrupts
+}
+
+
 // Public
 static _data &_data::getInstance()
 {

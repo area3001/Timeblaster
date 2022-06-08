@@ -5,7 +5,7 @@
 #include "functions.h"
 #include "badgelink.h"
 #include "animations.h"
-#include "communications.h"
+//#include "communications.h"
 #include "data.h"
 
 volatile int8_t pulse_pointer = 0;            // which pulse are we transmitting
@@ -26,26 +26,22 @@ void setup()
   d.command = eCommandChatter;
   d.parameter = 12;
 
-  DataPacket d2 = Data.calculateCRC(d);
-  DataPacket d3 = Data.calculateCRC(d2);
-  Serial.println(d.raw,BIN);  
-  Serial.println(d2.raw,BIN);  
-  Serial.println(d3.raw,BIN);
+  d = Data.calculateCRC(d);
 
   Serial.println();
   while(true);
 
   blinkIfNoTeamSelector(); //This is only used when flashing the mc
 
-  Communications::init();
-  Communications::enableIrReceive();
+//  Communications::init();
+//  Communications::enableIrReceive();
 
   pinMode(TRIGGER_PIN, INPUT_PULLUP);
   pinMode(BADGELINK_PIN, INPUT_PULLUP);
 
   Serial.println("Blaster starting");
   Serial.println("Init timers");
-  setup_ir_carrier();
+ // setup_ir_carrier();
 
   Animations::setup();
 
@@ -67,24 +63,7 @@ void setup()
 
 void loop()
 {
-  if (Communications::irDataReady()) {
-    auto data = Communications::getIrData();
-    if (Communications::validate_checksum(data)) 
-    {
-      Serial.println();
-      Serial.println(data, BIN);
-      Serial.println(getHardwareTeam(), BIN);
-      Serial.println();
-      
-      if ((data & 0x0007) != getHardwareTeam()) 
-      {  
-        Animations::crash(data & 0x0007);
-        delay(5000);
-        Animations::clear();
-        Animations::team_switch(blasterTeam);
-      }
-    }
-  }
+  
 
   if (teamChanged())
   {
@@ -93,7 +72,7 @@ void loop()
   if (triggerPressed())
   {
     uint16_t team  = getHardwareTeam();
-    transmit_raw(team, true, true);
+    //transmit_raw(team, true, true);
     Animations::shoot(blasterTeam);
   }
 
@@ -101,69 +80,9 @@ void loop()
 
 }
 
-void transmit_raw(unsigned int data, bool ir_out, bool badgelink_out)
-{
-  /*
-     Create a pulse train of high's and lows. send the Least Significant Bit first.
-  */
 
-  data &= 0x0FFF;
-  data = Communications::add_checksum(data);
-  Serial.println(data, BIN);
-  
-  Communications::disableIrReceive();
-  byte index = 0;
-  if (ir_send_start_pulse)
-  {
-    pulse_train[index++] = ir_start_high_time;
-    pulse_train[index++] = ir_start_low_time;
-  }
-  for (int i = 0; i < ir_bit_lenght; i++)
-  {
-    if (bitRead(data, i))
-    {
-      pulse_train[index++] = ir_one_high_time;
-      pulse_train[index++] = ir_one_low_time;
-    }
-    else
-    {
-      pulse_train[index++] = ir_zero_high_time;
-      pulse_train[index++] = ir_zero_low_time;
-    }
-  }
-  if (ir_send_stop_pulse)
-  {
-    pulse_train[index++] = ir_stop_high_time;
-    pulse_train[index++] = ir_stop_low_time;
-  }
 
-  pulse_pointer = 0;
-  pinMode(BADGELINK_PIN, OUTPUT);
-  setup_ir_carrier();
-  transmitting = true;
-  // wait for sending to end
-  while (transmitting)
-    delay(10);
-  pinMode(BADGELINK_PIN, INPUT_PULLUP);
-  Communications::enableIrReceive();
-}
 
-void setup_ir_carrier()
-{
-  /* Setup Timer 1 to toggle the IR-LED D1 at 38khz
-     This will generate a wave of approximately 38.1khz.
-     http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
-  */
-  cli();              // Stop interrupts while we set up the timer
-  TCCR1B = B00000000; // Stop Timer/Counter1 clock by setting the clock source to none.
-  TCCR1A = B00000000; // Set Timer/Counter1 to normal mode.
-  TCNT1 = 0;          // Set Timer/Counter1 to 0
-  OCR1A = 209; // = 16000000 / (1 * 76190.47619047618) - 1 (must be <65536)
-  TCCR1A = B01000100; // Set Timer/Counter1 to CTC mode. Set OC1A to toggle.
-  TCCR1B |= (1 << WGM12);
-  TCCR1B |= (0 << CS12) | (0 << CS11) | (1 << CS10);
-  sei();              // allow interrupts
-}
 
 
 
