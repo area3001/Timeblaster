@@ -3,6 +3,19 @@
 #define DATA_H
 #include <Arduino.h>
 
+const bool ir_send_start_pulse = true;
+const bool ir_send_stop_pulse = true;
+const int ir_bit_lenght = 16;
+const int ir_start_high_time = 16;
+const int ir_start_low_time = 8;
+const int ir_zero_high_time = 1;
+const int ir_zero_low_time = 1;
+const int ir_one_high_time = 1;
+const int ir_one_low_time = 3;
+const int ir_stop_high_time = 1;
+const int ir_stop_low_time = 1;
+const int pulse_train_lenght = ir_send_start_pulse * 2 + ir_bit_lenght * 2 + ir_send_stop_pulse * 2;
+
 enum TeamColor : uint8_t 
 {
   eNoTeam = 0b000,
@@ -76,11 +89,21 @@ class _data
     DataReader ir1_reader;
     DataReader ir2_reader;
     DataReader badge_reader;
+
+    volatile bool transmitting;
+    volatile int pulse_train[pulse_train_lenght];
+    volatile int8_t pulse_pointer; 
+    
+    void setup_ir_carrier();
+    void setup_data_timer();
+    void prepare_pulse_train(DataPacket packet);
   public:
     static _data &getInstance();
     DataPacket calculateCRC(DataPacket packet);
     void transmit(DataPacket packet, DeviceType device);
     void disable_receive(DeviceType device);
+    void test();
+    void init();
 };
 
 extern _data &Data;

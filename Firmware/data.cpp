@@ -18,6 +18,88 @@ _data::_data()
     badge_reader.stopReading();
 }
 
+void _data::setup_ir_carrier()
+{
+  /* Setup Timer 1 to toggle the IR-LED D1 at 38khz
+     This will generate a wave of approximately 38.1khz.
+     http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
+  */
+  cli();              // Stop interrupts while we set up the timer
+  TCCR1B = B00000000; // Stop Timer/Counter1 clock by setting the clock source to none.
+  TCCR1A = B00000000; // Set Timer/Counter1 to normal mode.
+  TCNT1 = 0;          // Set Timer/Counter1 to 0
+  OCR1A = 209; // = 16000000 / (1 * 76190.47619047618) - 1 (must be <65536)
+  TCCR1A = B01000100; // Set Timer/Counter1 to CTC mode. Set OC1A to toggle.
+  TCCR1B |= (1 << WGM12);
+  TCCR1B |= (0 << CS12) | (0 << CS11) | (1 << CS10);
+  sei();              // allow interrupts
+}
+
+void _data::setup_data_timer()
+{
+ /* Set up timer 2 for data transfer.
+     The JVC protocol has pulses that are multiples of 525 µs
+     So we need a frequency of 1904.8 Hz (aproximatly)
+     CPU: 16.000.000 Hz
+     Prescaler: 64
+     Timer freq: 16.000.000 / 64 = 250.000 Hz
+     OCRA2: 250.000 / 1904.8 - 1 = 130.25 ~ 130
+
+     This gives us an interrupt frequency of 1908.4 Hz which is good enough
+
+     Ref: http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
+  */
+
+  // TIMER 2 for interrupt frequency 1908.4 Hz:
+  cli();      // stop interrupts
+  TCCR2A = 0; // set entire TCCR2A register to 0
+  TCCR2B = 0; // same for TCCR2B
+  TCNT2 = 0;  // initialize counter value to 0
+  // set compare match register for 8khz increments
+  OCR2A = 130;
+  // turn on CTC mode
+  TCCR2A |= (1 << WGM21);
+  // Set CS22 bit for /64 prescaler
+  TCCR2B |= (1 << CS22);
+  // enable timer compare interrupt
+  TIMSK2 |= (1 << OCIE2A);
+  sei(); // allow interrupts
+
+  // Stop timer
+  // TIMSK2 &= ~(1 << OCIE2A);
+}
+
+void _data::prepare_pulse_train(DataPacket packet)
+{
+  auto data = packet.raw;
+  byte index = 0;
+  if (ir_send_start_pulse)
+  {
+    pulse_train[index++] = ir_start_high_time;
+    pulse_train[index++] = ir_start_low_time;
+  }
+  for (int i = 0; i < ir_bit_lenght; i++)
+  {
+    if (bitRead(data, i))
+    {
+      pulse_train[index++] = ir_one_high_time;
+      pulse_train[index++] = ir_one_low_time;
+    }
+    else
+    {
+      pulse_train[index++] = ir_zero_high_time;
+      pulse_train[index++] = ir_zero_low_time;
+    }
+  }
+  if (ir_send_stop_pulse)
+  {
+    pulse_train[index++] = ir_stop_high_time;
+    pulse_train[index++] = ir_stop_low_time;
+  }
+
+  pulse_pointer = 0;  
+}
+
 // Public
 static _data &_data::getInstance()
 {
@@ -25,6 +107,12 @@ static _data &_data::getInstance()
   return data;
 }
 
+void _data::init()
+{
+  transmitting = false;
+  pulse_pointer = 0;
+  setup_data_timer();
+}
 
 /* Calculate the 4-bit CRC and xor it with the existing CRC. 
  * For new packages it add the CRC 
@@ -62,12 +150,24 @@ DataPacket _data::calculateCRC(DataPacket packet)
 
 void _data::transmit(DataPacket packet, DeviceType device)
 {
+  Serial.println("TRANSMITTING PACKET");
   // 1) Disable Receiving for each device
-  disable_receive(device);
+  //disable_receive(device);
   
   // 2) Clear and recalculate CRC
   packet.crc = 0;
   packet = calculateCRC(packet);
+
+  prepare_pulse_train(packet);
+
+  if (device & eBadge)
+  {
+    Serial.println("TO BADGE");
+    //stop RX
+    //set badge send  
+  }
+
+  //enable transmit
   
   // 3) Calculate output buffer(s)
   // 4) Enable transmit and wait
@@ -89,4 +189,43 @@ void _data::disable_receive(DeviceType device)
   }
 }
 
+void _data::test() {}
+
 _data &Data = Data.getInstance();
+
+
+ISR(TIMER2_COMPA_vect)
+{
+  Data.test();
+  // todo: reset all data in structs when settings transmiting to true;
+ /* if (transmitting)
+  {*/
+    /* IR TRANSMIT */
+  /*  if (pulse_pointer % 2 == 1)
+    {
+      DDRB &= ~B00000010;
+      digitalWrite(BADGELINK_PIN, HIGH);
+    }
+    else
+    {
+      DDRB |= B00000010;
+      digitalWrite(BADGELINK_PIN, LOW);
+    }
+*/
+    /* decrease & move to next pulse length */
+  /*  pulse_train[pulse_pointer]--; // count down
+
+    // if we reached the end go to the next pulse
+    if (pulse_train[pulse_pointer] <= 0)
+      pulse_pointer++;
+
+    // unless we allready were on the last pulse
+    if (pulse_pointer >= pulse_train_lenght)
+      transmitting = false;
+  }
+  // else
+  //{ // listen when not transmitting
+  //   byte ir1_pin_state = digitalRead(IR_IN1_PIN);
+  //   data_in_ir1.process_state(ir1_pin_state);
+  // }*/
+}

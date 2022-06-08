@@ -59,48 +59,6 @@ DataReader ir1 = DataReader();
 DataReader ir2 = DataReader();
 DataReader badgeLink;
 
-/*
-   Configure the ISR for pin changes in IR IN (pin 5 and 6)
-*/
-
-void setup_data_timer()
-{
-  /* Set up timer 2 for data transfer.
-     The JVC protocol has pulses that are multiples of 525 µs
-     So we need a frequency of 1904.8 Hz (aproximatly)
-     CPU: 16.000.000 Hz
-     Prescaler: 64
-     Timer freq: 16.000.000 / 64 = 250.000 Hz
-     OCRA2: 250.000 / 1904.8 - 1 = 130.25 ~ 130
-
-     This gives us an interrupt frequency of 1908.4 Hz which is good enough
-
-     Ref: http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
-  */
-
-  // TIMER 2 for interrupt frequency 1908.4 Hz:
-  cli();      // stop interrupts
-  TCCR2A = 0; // set entire TCCR2A register to 0
-  TCCR2B = 0; // same for TCCR2B
-  TCNT2 = 0;  // initialize counter value to 0
-  // set compare match register for 8khz increments
-  OCR2A = 130;
-  // turn on CTC mode
-  TCCR2A |= (1 << WGM21);
-  // Set CS22 bit for /64 prescaler
-  TCCR2B |= (1 << CS22);
-  // enable timer compare interrupt
-  TIMSK2 |= (1 << OCIE2A);
-  sei(); // allow interrupts
-
-  // Stop timer
-  // TIMSK2 &= ~(1 << OCIE2A);
-}
-
-void init() 
-{
-  setup_data_timer();
-}
 
 void enableIrReceive()
 {
