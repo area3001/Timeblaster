@@ -15,6 +15,7 @@ const int ir_one_low_time = 3;
 const int ir_stop_high_time = 1;
 const int ir_stop_low_time = 1;
 const int pulse_train_lenght = ir_send_start_pulse * 2 + ir_bit_lenght * 2 + ir_send_stop_pulse * 2;
+#define BADGELINK_PIN 7
 
 enum TeamColor : uint8_t 
 {
@@ -91,6 +92,8 @@ class _data
     DataReader badge_reader;
 
     volatile bool transmitting;
+    volatile bool transmit_badge;
+    volatile bool transmit_ir;
     volatile int pulse_train[pulse_train_lenght];
     volatile int8_t pulse_pointer; 
     
@@ -102,7 +105,7 @@ class _data
     DataPacket calculateCRC(DataPacket packet);
     void transmit(DataPacket packet, DeviceType device);
     void disable_receive(DeviceType device);
-    void test();
+    void transmit_ISR();
     void init();
 };
 

@@ -109,7 +109,10 @@ static _data &_data::getInstance()
 
 void _data::init()
 {
+  pinMode(BADGELINK_PIN, INPUT_PULLUP);
   transmitting = false;
+  transmit_badge = false;
+  transmit_ir = false;
   pulse_pointer = 0;
   setup_data_timer();
 }
@@ -165,10 +168,15 @@ void _data::transmit(DataPacket packet, DeviceType device)
     Serial.println("TO BADGE");
     //stop RX
     //set badge send  
+    transmit_badge = true;
   }
 
   //enable transmit
-  
+  pinMode(BADGELINK_PIN, OUTPUT);
+  transmitting = true;
+  while (transmitting) {}
+  pinMode(BADGELINK_PIN, INPUT);
+    
   // 3) Calculate output buffer(s)
   // 4) Enable transmit and wait
   // 5) Clean receiving buffers
@@ -189,43 +197,40 @@ void _data::disable_receive(DeviceType device)
   }
 }
 
-void _data::test() {}
-
-_data &Data = Data.getInstance();
-
-
-ISR(TIMER2_COMPA_vect)
+void _data::transmit_ISR()
 {
-  Data.test();
-  // todo: reset all data in structs when settings transmiting to true;
- /* if (transmitting)
-  {*/
-    /* IR TRANSMIT */
-  /*  if (pulse_pointer % 2 == 1)
+  if (transmitting)
+  {
+    if (pulse_pointer % 2 == 1)
     {
-      DDRB &= ~B00000010;
-      digitalWrite(BADGELINK_PIN, HIGH);
+      //DDRB &= ~B00000010;
+      if (transmit_badge) digitalWrite(BADGELINK_PIN, LOW);
     }
     else
     {
-      DDRB |= B00000010;
-      digitalWrite(BADGELINK_PIN, LOW);
+      //DDRB |= B00000010;
+      if (transmit_badge) digitalWrite(BADGELINK_PIN, HIGH);
     }
-*/
-    /* decrease & move to next pulse length */
-  /*  pulse_train[pulse_pointer]--; // count down
+    pulse_train[pulse_pointer]--; // count down
 
     // if we reached the end go to the next pulse
     if (pulse_train[pulse_pointer] <= 0)
       pulse_pointer++;
 
     // unless we allready were on the last pulse
-    if (pulse_pointer >= pulse_train_lenght)
+    if (pulse_pointer >= pulse_train_lenght){
       transmitting = false;
+      transmit_badge=false;
+      transmit_ir=false;
+    }
   }
-  // else
-  //{ // listen when not transmitting
-  //   byte ir1_pin_state = digitalRead(IR_IN1_PIN);
-  //   data_in_ir1.process_state(ir1_pin_state);
-  // }*/
 }
+
+_data &Data = Data.getInstance();
+
+
+ISR(TIMER2_COMPA_vect)
+{
+  Data.transmit_ISR();
+}
+  

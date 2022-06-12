@@ -7,6 +7,18 @@
 #include "animations.h"
 #include "data.h"
 
+/* Blaster state variables */
+bool can_shoot = true;
+uint8_t ir_channel = 0b000;
+bool healing_mode = false;
+bool stealth_mode = false;
+bool single_shot_mode = false;
+uint8_t  game_mode = 0; //TDB
+uint8_t fixed_team = 0;
+bool muted = false;
+bool animated = true;
+uint8_t brightness = 0b11; 
+
 void setup()
 {  
   Serial.begin(115200);
@@ -30,7 +42,7 @@ void setup()
 //  Communications::enableIrReceive();
 
   pinMode(TRIGGER_PIN, INPUT_PULLUP);
-  pinMode(BADGELINK_PIN, INPUT_PULLUP);
+  
 
   Serial.println("Blaster starting");
   Serial.println("Init timers");
