@@ -170,6 +170,14 @@ void _data::transmit(DataPacket packet, DeviceType device)
     //set badge send  
     transmit_badge = true;
   }
+  if (device & eInfrared)
+  {
+    Serial.println("TO IR");
+    //stop RX
+    //set ir send  
+    transmit_ir = true;
+    setup_ir_carrier();
+  }
 
   //enable transmit
   pinMode(BADGELINK_PIN, OUTPUT);
@@ -203,12 +211,12 @@ void _data::transmit_ISR()
   {
     if (pulse_pointer % 2 == 1)
     {
-      //DDRB &= ~B00000010;
+      DDRB &= ~B00000010;
       if (transmit_badge) digitalWrite(BADGELINK_PIN, LOW);
     }
     else
     {
-      //DDRB |= B00000010;
+      DDRB |= B00000010;
       if (transmit_badge) digitalWrite(BADGELINK_PIN, HIGH);
     }
     pulse_train[pulse_pointer]--; // count down

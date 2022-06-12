@@ -99,39 +99,5 @@ ISR(PCINT2_vect)
   ir2.handleState(IR2);
 }
 
-uint16_t add_checksum(uint16_t data) {
-  bool crc[] = {0,0,0,0};
-  // makes computing the checksum a litle bit faster
-  bool d0 =  bitRead(data,0);
-  bool d1 =  bitRead(data,1);
-  bool d2 =  bitRead(data,2);
-  bool d3 =  bitRead(data,3);
-  bool d4 =  bitRead(data,4);
-  bool d5 =  bitRead(data,5);
-  bool d6 =  bitRead(data,6);
-  bool d7 =  bitRead(data,7);
-  bool d8 =  bitRead(data,8);
-  bool d9 =  bitRead(data,9);
-  bool d10 =  bitRead(data,10);
-  bool d11 =  bitRead(data,11);
-
-  crc[0] = d11 ^ d10 ^ d9 ^ d8 ^ d6 ^ d4 ^ d3 ^ d0 ^ 0;
-  crc[1] = d8  ^ d7  ^ d6 ^ d5 ^ d3 ^ d1 ^ d0 ^ 1;
-  crc[2] = d9  ^ d8  ^ d7 ^ d6 ^ d4 ^ d2 ^ d1 ^ 1;
-  crc[3] = d10 ^ d9  ^ d8 ^ d7 ^ d5 ^ d3 ^ d2 ^ 0;
-
-  bitWrite(data, 12, crc[0] ^ bitRead(data,12));
-  bitWrite(data, 13, crc[1] ^ bitRead(data,13));
-  bitWrite(data, 14, crc[2] ^ bitRead(data,14));
-  bitWrite(data, 15, crc[3] ^ bitRead(data,15));
-
-  return data;
-}
-
-bool validate_checksum(uint16_t data){
-  return (add_checksum(data) & 0b1111000000000000UL) == 0;
-}
-
-class a {};
 }
 #endif

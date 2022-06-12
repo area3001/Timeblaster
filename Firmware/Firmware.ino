@@ -31,7 +31,11 @@ void setup()
   d.command = eCommandShoot;
   d.parameter = 0;
 
-  Data.transmit(d, eBadge);
+  //Data.transmit(d, eBadge);
+
+  d.team = eTeamGiggle;
+  Data.transmit(d, eInfrared | eBadge);
+
 
   Serial.println();
   while(true);
