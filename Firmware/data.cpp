@@ -135,6 +135,7 @@ void _data::prepare_pulse_train(DataPacket packet)
   pulse_pointer = 0;  
 }
 
+
 // Public
 static _data &_data::getInstance()
 {
