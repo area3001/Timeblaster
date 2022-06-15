@@ -44,9 +44,6 @@ class DataReader {
       refTime = time;
     }
 
-    bool isDataReady() {
-      return dataReady;
-    }
     
     uint16_t getRawData() {
       uint16_t data = rawData;
@@ -54,50 +51,5 @@ class DataReader {
       return data;
     }
 };
-
-DataReader ir1 = DataReader();
-DataReader ir2 = DataReader();
-DataReader badgeLink;
-
-
-void enableIrReceive()
-{
-  pinMode(IR_IN1_PIN, INPUT_PULLUP);
-  pinMode(IR_IN2_PIN, INPUT_PULLUP);
-  PCICR |= 0b00000100;    // turn on port D
-  PCMSK2 |= 0b01100000;    // turn on pins 5 & 6
-}
-
-void disableIrReceive()
-{
-  PCMSK2 &= ~0b01100000;    // turn on pins 5 & 6
-  }
-
-bool irDataReady() {
-  return ir1.isDataReady() || ir2.isDataReady();
-}
-
-uint16_t getIrData() {
-  if (ir1.isDataReady()) {
-    uint16_t data = ir1.getRawData();
-    ir2.getRawData();
-    return data;
-  }
-  if (ir2.isDataReady()) {
-    uint16_t data = ir2.getRawData();
-    ir1.getRawData();
-    return data;
-  }
-  return 0;
-}
-
-ISR(PCINT2_vect)
-{
-  bool IR1 = (PIND & 0b01000000);
-  bool IR2 = (PIND & 0b00100000);
-  ir1.handleState(IR1);
-  ir2.handleState(IR2);
-}
-
 }
 #endif

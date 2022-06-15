@@ -5,17 +5,22 @@
   DataReader::DataReader()
   {
   }
-  void DataReader::stopReading()
+  void DataReader::reset()
   {
   }
 
 
+/* Data Class
+ */
+
 //Private
 _data::_data()
 {
-    ir1_reader.stopReading();
-    ir2_reader.stopReading();
-    badge_reader.stopReading();
+    ir1_reader.reset();
+    ir2_reader.reset();
+    badge_reader.reset();
+
+    enableReceive(eBadge | eInfrared);
 }
 
 void _data::setup_ir_carrier()
@@ -33,6 +38,36 @@ void _data::setup_ir_carrier()
   TCCR1B |= (1 << WGM12);
   TCCR1B |= (0 << CS12) | (0 << CS11) | (1 << CS10);
   sei();              // allow interrupts
+}
+
+void _data::enableReceive(DeviceType device)
+{
+    PCICR |= 0b00000100;    // turn on port D
+    
+    if (device & eInfrared) 
+    {
+       pinMode(IR_IN1_PIN, INPUT_PULLUP);
+        pinMode(IR_IN2_PIN, INPUT_PULLUP);
+      PCMSK2 |= 0b01100000;    // turn on pins 5 & 6
+    }
+
+    if (device & eBadge) 
+    {
+      pinMode(BADGELINK_PIN, INPUT_PULLUP);
+      PCMSK2 |= 0b10000000;  // tun on pin 7
+    }
+}
+
+void _data::disableReceive(DeviceType device)
+{
+   if (device & eInfrared) 
+    {
+      PCMSK2 &= ~0b01100000;    // turn off pins 5 & 6
+    }
+    if (device & eBadge) 
+    {
+      PCMSK2 &= ~0b10000000;  // tun off pin 7
+    }
 }
 
 void _data::setup_data_timer()
@@ -191,25 +226,15 @@ void _data::transmit(DataPacket packet, DeviceType device)
   // 6) Enable Receiving on selected devices
 }
 
-void _data::disable_receive(DeviceType device)
-{
-  if (device & eInfrared) 
-  {
-    //set receive to false
-    //clear buffer pointer
-  }
-  if (device & eBadge)
-  {
-    //set receive to false
-    //clear buffer pointer
-  }
-}
 
+/* Keep this as short (in time) as possible.
+ * This ISR is called 1908 times per second.
+ */
 void _data::transmit_ISR()
 {
   if (transmitting)
   {
-    if (pulse_pointer % 2 == 1)
+    if (pulse_pointer % 2 == 1) // would & 0b1 be faster?
     {
       DDRB &= ~B00000010;
       if (transmit_badge) digitalWrite(BADGELINK_PIN, LOW);
@@ -234,6 +259,11 @@ void _data::transmit_ISR()
   }
 }
 
+void _data::receive_ISR(uint8_t state)
+{
+  Serial.println(state , BIN);
+}
+
 _data &Data = Data.getInstance();
 
 
@@ -242,3 +272,10 @@ ISR(TIMER2_COMPA_vect)
   Data.transmit_ISR();
 }
   
+ISR(PCINT2_vect)
+{
+  bool IR1   = (PIND & 0b01000000);
+  bool IR2   = (PIND & 0b00100000);
+  bool Badge = (PIND & 0b10000000);
+  Data.receive_ISR(PIND & 0b11100000);
+}

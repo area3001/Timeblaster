@@ -15,6 +15,8 @@ const int ir_one_low_time = 3;
 const int ir_stop_high_time = 1;
 const int ir_stop_low_time = 1;
 const int pulse_train_lenght = ir_send_start_pulse * 2 + ir_bit_lenght * 2 + ir_send_stop_pulse * 2;
+#define IR_IN1_PIN 5  //PD PCINT21
+#define IR_IN2_PIN 6  //PD PCINT22
 #define BADGELINK_PIN 7
 
 enum TeamColor : uint8_t 
@@ -80,7 +82,10 @@ class DataReader
     volatile bool dataReady;
   public:
     DataReader();
-    void stopReading();
+    void handleState(bool state);
+    void reset(); //clear buffer
+    bool isDataReady(); //check buffer, if valid True, if invalid ResetBuffer
+    DataPacket getPacket(); //return packet and reset; Dataclass then needs to calculate CRC
 };
 
 class _data
@@ -100,12 +105,15 @@ class _data
     void setup_ir_carrier();
     void setup_data_timer();
     void prepare_pulse_train(DataPacket packet);
+    void enableReceive(DeviceType device);
+    void disableReceive(DeviceType device);
   public:
+    void dataReady();
     static _data &getInstance();
     DataPacket calculateCRC(DataPacket packet);
     void transmit(DataPacket packet, DeviceType device);
-    void disable_receive(DeviceType device);
-    void transmit_ISR();
+    void transmit_ISR(); //function called by ISR
+    void receive_ISR(uint8_t state); //function called by ISR
     void init();
 };
 

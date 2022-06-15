@@ -1,6 +1,11 @@
 #ifndef Functions_h
 #define Functions_h
 
+#define R_TEAM_PIN A5
+#define G_TEAM_PIN 4
+#define B_TEAM_PIN 8
+#define TRIGGER_PIN 3
+
 byte _lastBlasterTeam = 99;
 
 /* Get the team by reading the Team switch.
