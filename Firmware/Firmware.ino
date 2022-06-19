@@ -13,52 +13,50 @@ uint8_t ir_channel = 0b000;
 bool healing_mode = false;
 bool stealth_mode = false;
 bool single_shot_mode = false;
-uint8_t  game_mode = 0; //TDB
+uint8_t game_mode = 0; // TDB
 uint8_t fixed_team = 0;
 uint8_t blaster_team = 0;
 bool muted = false;
 bool animated = true;
-uint8_t brightness = 0b11; 
+uint8_t brightness = 0b11;
 
 void setup()
-{  
+{
   Serial.begin(115200);
 
   Data.init();
 
+  /*
+    DataPacket d;
+    d.team = eTeamRex;
+    d.trigger_state = 1;
+    d.command = eCommandShoot;
+    d.parameter = 0;
 
-/*
-  DataPacket d;
-  d.team = eTeamRex;
-  d.trigger_state = 1;
-  d.command = eCommandShoot;
-  d.parameter = 0;
-
-  while (true)
-    for(int i=0;i<16;i++)
-    {
-      Serial.println("Ping");
-      d.parameter = i;
-      Data.transmit(d, eInfrared);
-      delay(1000);
-    }
-    */
-
+    while (true)
+      for(int i=0;i<16;i++)
+      {
+        Serial.println("Ping");
+        d.parameter = i;
+        Data.transmit(d, eInfrared);
+        delay(1000);
+      }
+      */
 
   Serial.println();
-  while(true);
+  while (true)
+    ;
 
-  blinkIfNoTeamSelector(); //This is only used when flashing the mc
+  blinkIfNoTeamSelector(); // This is only used when flashing the mc
 
-//  Communications::init();
-//  Communications::enableIrReceive();
+  //  Communications::init();
+  //  Communications::enableIrReceive();
 
   pinMode(TRIGGER_PIN, INPUT_PULLUP);
-  
 
   Serial.println("Blaster starting");
   Serial.println("Init timers");
- // setup_ir_carrier();
+  // setup_ir_carrier();
 
   Animations::setup();
 
@@ -73,8 +71,6 @@ void setup()
   }
   Animations::blaster_start();
 
-
-
   delay(1000);
 }
 
@@ -86,13 +82,12 @@ void loop()
   }
   if (triggerPressed())
   {
-    uint16_t team  = getHardwareTeam();
-    //transmit_raw(team, true, true);
+    uint16_t team = getHardwareTeam();
+    // transmit_raw(team, true, true);
     Animations::shoot(blaster_team);
   }
 
   Animations::refresh();
-
 }
 
 bool triggerPressed()

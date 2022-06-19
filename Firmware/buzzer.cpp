@@ -16,7 +16,8 @@ _buzzer::_buzzer()
 
 void _buzzer::sound_on()
 {
-  if (sound_active) return;
+  if (sound_active)
+    return;
   cli();
   TCCR1A = 0;                                        // set entire TCCR1A register to 0
   TCCR1B = 0;                                        // same for TCCR1B
@@ -32,10 +33,12 @@ void _buzzer::sound_on()
 
 void _buzzer::sound_off()
 {
-  if (!sound_active) return;
-  while (TCNT1 != 0); // Wait for the counter to overflow. This prevents a clicking sound when changing frequencies.
+  if (!sound_active)
+    return;
+  while (TCNT1 != 0)
+    ; // Wait for the counter to overflow. This prevents a clicking sound when changing frequencies.
   cli();
-  TCCR1A &= ~(1 << COM1B0);                          // disable toggling of pin 10 (BUZZER)
+  TCCR1A &= ~(1 << COM1B0); // disable toggling of pin 10 (BUZZER)
   sei();
   sound_active = false;
 }
@@ -53,10 +56,12 @@ static _buzzer &_buzzer::getInstance()
 
 void _buzzer::playFrequency(int frequency)
 {
-  if (muted) return sound_off();
+  if (muted)
+    return sound_off();
 
   // disable sound when out of audible range
-  if (frequency < 20 || frequency > 200000) return sound_off();
+  if (frequency < 20 || frequency > 200000)
+    return sound_off();
 
   sound_on();
 

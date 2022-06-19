@@ -1,5 +1,5 @@
-#ifndef Functions_h
-#define Functions_h
+#ifndef FUNCTIONS_H
+#define FUNCTIONS_H
 
 #define R_TEAM_PIN A5
 #define G_TEAM_PIN 4
@@ -33,5 +33,7 @@ bool hasBlasterTeamChanged()
 {
   return (_lastBlasterTeam != _readBlasterTeam());
 }
+
+
 
 #endif

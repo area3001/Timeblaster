@@ -4,20 +4,22 @@
 #include <Arduino.h>
 //#include <Adafruit_NeoPixel.h>
 
-class _leds {
-  private:
-    _leds();
-    uint32_t color;
-  public:
-    static _leds &getInstance();
-    void init();
-    void setPixelColor(byte pixel, uint32_t color);
-    void setDiskColor(byte disk, uint32_t color);
-    void setVerticalColor(byte index, uint32_t color);
-    void setHorizontalColor(byte index, uint32_t color);
-    void update();
-    static uint32_t wheel(byte index);
-    void clear();
+class _leds
+{
+private:
+  _leds();
+  uint32_t color;
+
+public:
+  static _leds &getInstance();
+  void init();
+  void setPixelColor(byte pixel, uint32_t color);
+  void setDiskColor(byte disk, uint32_t color);
+  void setVerticalColor(byte index, uint32_t color);
+  void setHorizontalColor(byte index, uint32_t color);
+  void update();
+  static uint32_t wheel(byte index);
+  void clear();
 };
 
 extern _leds &Leds;
