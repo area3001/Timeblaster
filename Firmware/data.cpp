@@ -1,7 +1,9 @@
 #include "data.h"
 #include <Arduino.h>
 
-void DataReader::handleState(bool state)
+
+/* #region DataReader */
+void DataReader::handlePinChange(bool state)
 {
   if (dataReady)
     return; // don't read more data until the "buffer" is empty
@@ -53,9 +55,9 @@ DataPacket DataReader::getPacket()
   p.raw = rawData;
   return p;
 }
+/* #endregion */
 
-/* Data Class
- */
+/* #region Data */
 
 // Private
 _data::_data()
@@ -64,7 +66,7 @@ _data::_data()
   ir2_reader.reset();
   badge_reader.reset();
 
-  enableReceive(eBadge | eInfrared);
+  enableReceive(eAllDevices);
 }
 
 void _data::setup_ir_carrier()
@@ -180,7 +182,37 @@ void _data::prepare_pulse_train(DataPacket packet)
 }
 
 // Public
-static _data &_data::getInstance()
+DeviceType _data::dataReady() //add overload to bypass command type validation?
+{
+  if (ir1_reader.isDataReady())
+  {
+    auto Packet = calculateCRC(ir1_reader.getPacket());
+    if (Packet.crc == 0) {
+      //todo: check & validate command type for this device
+      //global.ir_packet = Packet;
+      ir2_reader.reset();
+    }
+  }
+  else if(ir2_reader.isDataReady())
+  {
+    auto Packet = calculateCRC(ir2_reader.getPacket());
+    if (Packet.crc == 0) {
+      //todo: check & validate command type for this device
+      //global.ir_packet = Packet;
+    }
+  }
+  if (badge_reader.isDataReady())
+  {
+    auto Packet = calculateCRC(badge_reader.getPacket());
+    if (Packet.crc == 0) {
+      //todo: check & validate command type for this device
+      //global.badge_packet = Packet;
+    }
+  }
+  //return a DeviceType combo based on the global values.
+}
+
+_data &_data::getInstance()
 {
   static _data data;
   return data;
@@ -307,12 +339,17 @@ void _data::transmit_ISR()
   }
 }
 
-void _data::receive_ISR(uint8_t state)
+void _data::receive_ISR(bool ir1, bool ir2, bool badge)
 {
-  Serial.println(state, BIN);
+  //Serial.println(state, BIN);
+  ir1_reader.handlePinChange(ir1);
+  ir2_reader.handlePinChange(ir2);
+  badge_reader.handlePinChange(badge);
 }
 
-_data &Data = Data.getInstance();
+/* #endregion */
+//todo investigate if static can be removed
+static _data &Data = Data.getInstance();
 
 ISR(TIMER2_COMPA_vect)
 {
@@ -324,5 +361,5 @@ ISR(PCINT2_vect)
   bool IR1 = (PIND & 0b01000000);
   bool IR2 = (PIND & 0b00100000);
   bool Badge = (PIND & 0b10000000);
-  Data.receive_ISR(PIND & 0b11100000);
+  Data.receive_ISR(IR1, IR2, Badge);
 }

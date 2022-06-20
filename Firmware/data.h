@@ -65,7 +65,7 @@ union DataPacket
   };
 };
 
-enum DeviceType
+enum DeviceType: uint8_t
 {
   eInfrared = 0b01,
   eBadge = 0b10,
@@ -82,7 +82,7 @@ private:
   volatile bool dataReady;
 
 public:
-  void handleState(bool state);
+  void handlePinChange(bool state);
   void reset();           // clear buffer
   bool isDataReady();     // check buffer, if valid True, if invalid ResetBuffer
   DataPacket getPacket(); // return packet and reset; Dataclass then needs to calculate CRC
@@ -109,12 +109,15 @@ private:
   void disableReceive(DeviceType device);
 
 public:
-  void dataReady();
+  DeviceType dataReady();
+  DataPacket getIrData();
+  DataPacket getBadgeData();
+
   static _data &getInstance();
   DataPacket calculateCRC(DataPacket packet);
   void transmit(DataPacket packet, DeviceType device);
   void transmit_ISR();             // function called by ISR
-  void receive_ISR(uint8_t state); // function called by ISR
+  void receive_ISR(bool ir1, bool ir2, bool badge); // function called by ISR
   void init();
 };
 
