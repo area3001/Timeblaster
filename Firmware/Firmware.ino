@@ -26,26 +26,26 @@ void setup()
 
   Data.init();
 
-  /*
-    DataPacket d;
-    d.team = eTeamRex;
-    d.trigger_state = 1;
-    d.command = eCommandShoot;
-    d.parameter = 0;
+  // while (true){
+  //   if (Serial.available()){
+  //     auto msg = Serial.readStringUntil("\n");
+  //     if (msg.substring(0, 2) == "tx")
+  //     {
+  //       if (msg.substring(3,5) == "bl") {
+  //         Serial.println("Transmitting to blaster");
+  //       } else if ((msg.substring(3,5) == "ir") {
+  //       Serial.println(msg);
+  //     } else Serial.println("Unknown command.");
+  //   }
+  // }
 
-    while (true)
-      for(int i=0;i<16;i++)
-      {
-        Serial.println("Ping");
-        d.parameter = i;
-        Data.transmit(d, eInfrared);
-        delay(1000);
-      }
-      */
+  
 
-  Serial.println();
-  while (true)
-    ;
+      
+
+  // Serial.println();
+  // while (true)
+  //   ;
 
   blinkIfNoTeamSelector(); // This is only used when flashing the mc
 
@@ -76,18 +76,34 @@ void setup()
 
 void loop()
 {
-  if (teamChanged())
-  {
-    Animations::team_switch(blaster_team);
-  }
-  if (triggerPressed())
-  {
-    uint16_t team = getHardwareTeam();
-    // transmit_raw(team, true, true);
-    Animations::shoot(blaster_team);
-  }
 
-  Animations::refresh();
+    DataPacket d;
+    d.team = eTeamRex;
+    d.trigger_state = 1;
+    d.command = eCommandShoot;
+    d.parameter = 0;
+
+    while (true)
+      for(int i=0;i<16;i++)
+      {
+        Serial.println("Ping");
+        d.parameter = i;
+        Data.transmit(d, eInfrared);
+        delay(1000);
+      }
+
+  // if (teamChanged())
+  // {
+  //   Animations::team_switch(blaster_team);
+  // }
+  // if (triggerPressed())
+  // {
+  //   uint16_t team = getHardwareTeam();
+  //   // transmit_raw(team, true, true);
+  //   Animations::shoot(blaster_team);
+  // }
+
+  // Animations::refresh();
 }
 
 bool triggerPressed()
