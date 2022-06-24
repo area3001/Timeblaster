@@ -72,25 +72,29 @@ void setup()
   Animations::blaster_start();
 
   delay(1000);
+
+  pinMode(BADGELINK_PIN, OUTPUT);
+  digitalWrite(BADGELINK_PIN, LOW);
 }
 
 void loop()
 {
+    if(Data.dataReady()) Serial.println("Ready.");
 
-    DataPacket d;
-    d.team = eTeamRex;
-    d.trigger_state = 1;
-    d.command = eCommandShoot;
-    d.parameter = 0;
+    // DataPacket d;
+    // d.team = eTeamRex;
+    // d.trigger_state = 1;
+    // d.command = eCommandShoot;
+    // d.parameter = 0;
 
-    while (true)
-      for(int i=0;i<16;i++)
-      {
-        Serial.println("Ping");
-        d.parameter = i;
-        Data.transmit(d, eInfrared);
-        delay(1000);
-      }
+    // while (true)
+    //   for(int i=0;i<16;i++)
+    //   {
+    //     Serial.println("Ping");
+    //     //d.parameter = i;
+    //     Data.transmit(d, eInfrared);
+    //     delay(1000);
+    //   }
 
   // if (teamChanged())
   // {

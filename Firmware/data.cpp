@@ -5,39 +5,48 @@
 /* #region DataReader */
 void DataReader::handlePinChange(bool state)
 {
-  if (dataReady)
-    return; // don't read more data until the "buffer" is empty
-  if (state == oldState)
-    return;         // if the state didn't change then don't do anything. this happens if an other pin caused the interrupt
+  if (dataReady) return; // don't read more data until the "buffer" is empty
+  if (state == oldState) return;  // if the state didn't change then don't do anything. this happens if an other pin caused the interrupt
   oldState = state; // update the oldState value so we can detect the next pin change.
-  if (state)
-    return;                      // we are looking for a rising edge, but the signal is inverted so a falling edge is what we want.
-  unsigned long time = micros(); // check time passed since boot up.
+  if (state) return;   // we are looking for a rising edge, but the signal is inverted so a falling edge is what we want.
+  uint32_t time = micros(); // check time passed since boot up.
+  uint32_t delta_time = time - refTime;
+  refTime = time;
 
   /* Check total pulse length (rising to rising edge) allow for some deviation*/
-  if (time - refTime > 12600 * 0.8 && time - refTime < 12600 / 0.8)
+  if (delta_time > (uint32_t)(12600 * 0.8) && delta_time < (uint32_t)(12600 / 0.8))
   {
-    bitsRead = 0;
+    bitsRead = 1;
     rawData = 0;
+    Serial.print("S");
+    return;
   }
-  else if (time - refTime > 2100 * 0.8 && time - refTime < 2100 / 0.8)
+  if (bitsRead == 0) return;
+  
+  if (delta_time > (uint32_t)(2100 * 0.8) && delta_time < (uint32_t)(2100 / 0.8))
   {
     rawData = rawData >> 1; // make room for an extra bit
     rawData |= 0x8000;      // set left bit high
-    if (++bitsRead == 16)
+    if (++bitsRead == 17)
     {
       dataReady = 1;
+      //Serial.println("R");
     }
   }
-  else if (time - refTime > 1050 * 0.8 && time - refTime < 1050 / 0.8)
+  else if (delta_time > (uint32_t)(1050 * 0.8) && delta_time < (uint32_t)(1050 / 0.8))
   {
     rawData = rawData >> 1; // make room for an extra bit
-    if (++bitsRead == 16)
+    if (++bitsRead == 17)
     {
       dataReady = 1;
+      //Serial.println("R");
     }
   }
-  refTime = time;
+  else {
+    Serial.println("X");
+
+  }
+  
 }
 void DataReader::reset()
 {
@@ -53,6 +62,7 @@ DataPacket DataReader::getPacket()
 {
   DataPacket p;
   p.raw = rawData;
+  reset();
   return p;
 }
 /* #endregion */
@@ -89,18 +99,18 @@ void _data::setup_ir_carrier()
 void _data::enableReceive(DeviceType device)
 {
   PCICR |= 0b00000100; // turn on port D
-
+  PCMSK2 = 0;
   if (device & eInfrared)
   {
-    pinMode(IR_IN1_PIN, INPUT_PULLUP);
-    pinMode(IR_IN2_PIN, INPUT_PULLUP);
-    PCMSK2 |= 0b01100000; // turn on pins 5 & 6
+    pinMode(IR_IN1_PIN, INPUT);
+    pinMode(IR_IN2_PIN, INPUT);
+    //PCMSK2 |= 0b01100000; // turn on pins 5 & 6
+    PCMSK2 |= 0b01000000;
   }
-
   if (device & eBadge)
   {
-    pinMode(BADGELINK_PIN, INPUT_PULLUP);
-    PCMSK2 |= 0b10000000; // tun on pin 7
+    //pinMode(BADGELINK_PIN, INPUT_PULLUP);
+    //PCMSK2 |= 0b10000000; // tun on pin 7
   }
 }
 
@@ -184,31 +194,38 @@ void _data::prepare_pulse_train(DataPacket packet)
 // Public
 DeviceType _data::dataReady() //add overload to bypass command type validation?
 {
+  if(ir1_reader.isDataReady())
+  {
+    auto Packet = calculateCRC(ir1_reader.getPacket());
+    Serial.println(Packet.parameter, BIN);
+  }
+
   if (ir1_reader.isDataReady())
   {
     auto Packet = calculateCRC(ir1_reader.getPacket());
     if (Packet.crc == 0) {
+      Serial.println(Packet.parameter, BIN);
       //todo: check & validate command type for this device
       //global.ir_packet = Packet;
-      ir2_reader.reset();
-    }
+   
+      }
   }
-  else if(ir2_reader.isDataReady())
-  {
-    auto Packet = calculateCRC(ir2_reader.getPacket());
-    if (Packet.crc == 0) {
-      //todo: check & validate command type for this device
-      //global.ir_packet = Packet;
-    }
-  }
-  if (badge_reader.isDataReady())
-  {
-    auto Packet = calculateCRC(badge_reader.getPacket());
-    if (Packet.crc == 0) {
-      //todo: check & validate command type for this device
-      //global.badge_packet = Packet;
-    }
-  }
+  // else if(ir2_reader.isDataReady())
+  // {
+  //   auto Packet = calculateCRC(ir2_reader.getPacket());
+  //   if (Packet.crc == 0) {
+  //     //todo: check & validate command type for this device
+  //     //global.ir_packet = Packet;
+  //   }
+  // }
+  // if (badge_reader.isDataReady())
+  // {
+  //   auto Packet = calculateCRC(badge_reader.getPacket());
+  //   if (Packet.crc == 0) {
+  //     //todo: check & validate command type for this device
+  //     //global.badge_packet = Packet;
+  //   }
+  // }
   //return a DeviceType combo based on the global values.
 }
 
@@ -341,10 +358,9 @@ void _data::transmit_ISR()
 
 void _data::receive_ISR(bool ir1, bool ir2, bool badge)
 {
-  //Serial.println(state, BIN);
   ir1_reader.handlePinChange(ir1);
-  ir2_reader.handlePinChange(ir2);
-  badge_reader.handlePinChange(badge);
+//  ir2_reader.handlePinChange(ir2);
+//  badge_reader.handlePinChange(badge);
 }
 
 /* #endregion */
@@ -358,8 +374,16 @@ ISR(TIMER2_COMPA_vect)
 
 ISR(PCINT2_vect)
 {
+  //noInterrupts();
+  
+  digitalWrite(BADGELINK_PIN, HIGH);
+
   bool IR1 = (PIND & 0b01000000);
   bool IR2 = (PIND & 0b00100000);
   bool Badge = (PIND & 0b10000000);
   Data.receive_ISR(IR1, IR2, Badge);
+
+  digitalWrite(BADGELINK_PIN, LOW);
+
+ //interrupts();
 }
