@@ -18,7 +18,6 @@ void DataReader::handlePinChange(bool state)
   {
     bitsRead = 1;
     rawData = 0;
-    Serial.print("S");
     return;
   }
   if (bitsRead == 0) return;
@@ -30,7 +29,6 @@ void DataReader::handlePinChange(bool state)
     if (++bitsRead == 17)
     {
       dataReady = 1;
-      //Serial.println("R");
     }
   }
   else if (delta_time > (uint32_t)(1050 * 0.8) && delta_time < (uint32_t)(1050 / 0.8))
@@ -39,14 +37,8 @@ void DataReader::handlePinChange(bool state)
     if (++bitsRead == 17)
     {
       dataReady = 1;
-      //Serial.println("R");
     }
-  }
-  else {
-    Serial.println("X");
-
-  }
-  
+  }  
 }
 void DataReader::reset()
 {
@@ -104,13 +96,12 @@ void _data::enableReceive(DeviceType device)
   {
     pinMode(IR_IN1_PIN, INPUT);
     pinMode(IR_IN2_PIN, INPUT);
-    //PCMSK2 |= 0b01100000; // turn on pins 5 & 6
-    PCMSK2 |= 0b01000000;
+    PCMSK2 |= 0b01100000; // turn on pins 5 & 6
   }
   if (device & eBadge)
   {
-    //pinMode(BADGELINK_PIN, INPUT_PULLUP);
-    //PCMSK2 |= 0b10000000; // tun on pin 7
+    pinMode(BADGELINK_PIN, INPUT_PULLUP);
+    PCMSK2 |= 0b10000000; // tun on pin 7
   }
 }
 
@@ -119,10 +110,13 @@ void _data::disableReceive(DeviceType device)
   if (device & eInfrared)
   {
     PCMSK2 &= ~0b01100000; // turn off pins 5 & 6
+    ir1_reader.reset();
+    ir2_reader.reset();
   }
   if (device & eBadge)
   {
     PCMSK2 &= ~0b10000000; // tun off pin 7
+    badge_reader.reset();
   }
 }
 
@@ -192,41 +186,47 @@ void _data::prepare_pulse_train(DataPacket packet)
 }
 
 // Public
-DeviceType _data::dataReady() //add overload to bypass command type validation?
+DataPacket _data::readIr() //add overload to bypass command type validation?
 {
-  if(ir1_reader.isDataReady())
-  {
-    auto Packet = calculateCRC(ir1_reader.getPacket());
-    Serial.println(Packet.parameter, BIN);
-  }
-
   if (ir1_reader.isDataReady())
   {
     auto Packet = calculateCRC(ir1_reader.getPacket());
-    if (Packet.crc == 0) {
-      Serial.println(Packet.parameter, BIN);
-      //todo: check & validate command type for this device
-      //global.ir_packet = Packet;
-   
+    if (Packet.crc == 0) 
+    {
+      ir2_reader.reset();
+      return Packet;   
       }
   }
-  // else if(ir2_reader.isDataReady())
-  // {
-  //   auto Packet = calculateCRC(ir2_reader.getPacket());
-  //   if (Packet.crc == 0) {
-  //     //todo: check & validate command type for this device
-  //     //global.ir_packet = Packet;
-  //   }
-  // }
-  // if (badge_reader.isDataReady())
-  // {
-  //   auto Packet = calculateCRC(badge_reader.getPacket());
-  //   if (Packet.crc == 0) {
-  //     //todo: check & validate command type for this device
-  //     //global.badge_packet = Packet;
-  //   }
-  // }
-  //return a DeviceType combo based on the global values.
+
+  if (ir2_reader.isDataReady())
+  {
+    auto Packet = calculateCRC(ir2_reader.getPacket());
+    if (Packet.crc == 0) 
+    {
+      ir1_reader.reset();
+      return Packet;   
+      }
+  }
+
+  auto emptyPacket = DataPacket();
+  emptyPacket.raw = 0;
+  return emptyPacket;
+}
+
+DataPacket _data::readBadge()
+{
+  if (badge_reader.isDataReady())
+  {
+    auto Packet = calculateCRC(badge_reader.getPacket());
+    if (Packet.crc == 0) 
+    {
+      return Packet;   
+      }
+  }
+
+  auto emptyPacket = DataPacket();
+  emptyPacket.raw = 0;
+  return emptyPacket;
 }
 
 _data &_data::getInstance()
@@ -283,7 +283,7 @@ void _data::transmit(DataPacket packet, DeviceType device)
 {
   Serial.println("TRANSMITTING PACKET");
   // 1) Disable Receiving for each device
-  // disable_receive(device);
+  disableReceive(device);
 
   // 2) Clear and recalculate CRC
   packet.crc = 0;
@@ -313,12 +313,9 @@ void _data::transmit(DataPacket packet, DeviceType device)
   while (transmitting)
   {
   }
-  pinMode(BADGELINK_PIN, INPUT);
+  pinMode(BADGELINK_PIN, INPUT_PULLUP);
 
-  // 3) Calculate output buffer(s)
-  // 4) Enable transmit and wait
-  // 5) Clean receiving buffers
-  // 6) Enable Receiving on selected devices
+  enableReceive(device);
 }
 
 /* Keep this as short (in time) as possible.
@@ -359,11 +356,12 @@ void _data::transmit_ISR()
 void _data::receive_ISR(bool ir1, bool ir2, bool badge)
 {
   ir1_reader.handlePinChange(ir1);
-//  ir2_reader.handlePinChange(ir2);
-//  badge_reader.handlePinChange(badge);
+  ir2_reader.handlePinChange(ir2);
+  badge_reader.handlePinChange(badge);
 }
 
 /* #endregion */
+
 //todo investigate if static can be removed
 static _data &Data = Data.getInstance();
 
@@ -374,16 +372,8 @@ ISR(TIMER2_COMPA_vect)
 
 ISR(PCINT2_vect)
 {
-  //noInterrupts();
-  
-  digitalWrite(BADGELINK_PIN, HIGH);
-
   bool IR1 = (PIND & 0b01000000);
   bool IR2 = (PIND & 0b00100000);
-  bool Badge = (PIND & 0b10000000);
+  bool Badge = !(PIND & 0b10000000);
   Data.receive_ISR(IR1, IR2, Badge);
-
-  digitalWrite(BADGELINK_PIN, LOW);
-
- //interrupts();
 }

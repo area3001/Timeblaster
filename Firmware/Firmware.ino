@@ -49,9 +49,6 @@ void setup()
 
   blinkIfNoTeamSelector(); // This is only used when flashing the mc
 
-  //  Communications::init();
-  //  Communications::enableIrReceive();
-
   pinMode(TRIGGER_PIN, INPUT_PULLUP);
 
   Serial.println("Blaster starting");
@@ -60,7 +57,6 @@ void setup()
 
   Animations::setup();
 
-  Animations::mute();
   if (triggerPressed())
   {
     Animations::mute();
@@ -72,14 +68,19 @@ void setup()
   Animations::blaster_start();
 
   delay(1000);
-
-  pinMode(BADGELINK_PIN, OUTPUT);
-  digitalWrite(BADGELINK_PIN, LOW);
 }
 
 void loop()
 {
-    if(Data.dataReady()) Serial.println("Ready.");
+    auto packet = Data.readBadge();
+    if (packet.raw > 0) {
+      Serial.print(packet.team);
+      Serial.print(" ");
+      Serial.print(packet.command);
+      Serial.print(" ");
+      Serial.println(packet.parameter);
+      //Data.transmit(ir_packet, eAllDevices);
+    }
 
     // DataPacket d;
     // d.team = eTeamRex;
@@ -91,7 +92,7 @@ void loop()
     //   for(int i=0;i<16;i++)
     //   {
     //     Serial.println("Ping");
-    //     //d.parameter = i;
+    //     d.parameter = i;
     //     Data.transmit(d, eInfrared);
     //     delay(1000);
     //   }

@@ -109,9 +109,8 @@ private:
   void disableReceive(DeviceType device);
 
 public:
-  DeviceType dataReady();
-  DataPacket getIrData();
-  DataPacket getBadgeData();
+  DataPacket readIr();
+  DataPacket readBadge();
 
   static _data &getInstance();
   DataPacket calculateCRC(DataPacket packet);
