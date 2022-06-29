@@ -8,6 +8,7 @@
 #define TRIGGER_PIN 3
 
 /* Blaster state variables */
+// if false the trigger is disabled. Set by the badge (trigger field)
 bool can_shoot = true;
 uint8_t ir_channel = 0b000;
 bool healing_mode = false;
@@ -22,30 +23,23 @@ uint8_t brightness = 0b11;
 
 void setup()
 {
+
+  pinMode(A0, OUTPUT);
+  
+    while (true)
+    {
+      digitalWrite(A0, HIGH);
+      delay(100);
+      digitalWrite(A0, LOW);
+      delay(100);
+    }
+
+
+
+
   Serial.begin(115200);
 
   Data.init();
-
-  // while (true){
-  //   if (Serial.available()){
-  //     auto msg = Serial.readStringUntil("\n");
-  //     if (msg.substring(0, 2) == "tx")
-  //     {
-  //       if (msg.substring(3,5) == "bl") {
-  //         Serial.println("Transmitting to blaster");
-  //       } else if ((msg.substring(3,5) == "ir") {
-  //       Serial.println(msg);
-  //     } else Serial.println("Unknown command.");
-  //   }
-  // }
-
-  
-
-      
-
-  // Serial.println();
-  // while (true)
-  //   ;
 
   blinkIfNoTeamSelector(); // This is only used when flashing the mc
 
@@ -162,12 +156,17 @@ void blinkIfNoTeamSelector()
   pinMode(G_TEAM_PIN, INPUT_PULLUP);
   pinMode(B_TEAM_PIN, INPUT_PULLUP);
   pinMode(A0, OUTPUT);
-  while (!(digitalRead(R_TEAM_PIN) | digitalRead(G_TEAM_PIN) | digitalRead(B_TEAM_PIN)))
+  if (digitalRead(R_TEAM_PIN) & digitalRead(G_TEAM_PIN) & digitalRead(B_TEAM_PIN))
   {
-    digitalWrite(A0, HIGH);
-    delay(500);
-    digitalWrite(A0, LOW);
-    delay(500);
+    Serial.println("Enter Flash Test Mode");
+    while (digitalRead(R_TEAM_PIN) & digitalRead(G_TEAM_PIN) & digitalRead(B_TEAM_PIN))
+    {
+      digitalWrite(A0, HIGH);
+      delay(100);
+      digitalWrite(A0, LOW);
+      delay(500);
+    }
+    Serial.println("Exit Flash Test Mode");
   }
   pinMode(A0, INPUT_PULLUP);
 }
