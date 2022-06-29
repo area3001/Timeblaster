@@ -1,42 +1,25 @@
-void transmit_raw(unsigned int data, bool ir_out, bool badgelink_out)
-{
-  /*
-     Create a pulse train of high's and lows. send the Least Significant Bit first.
-  */
-
-  data &= 0x0FFF;
-  data = Communications::add_checksum(data);
-  Serial.println(data, BIN);
-  
-  Communications::disableIrReceive();
-   //moved to data.cpp
-  pinMode(BADGELINK_PIN, OUTPUT);
-  setup_ir_carrier();
-  transmitting = true;
-  // wait for sending to end
-  while (transmitting)
-    delay(10);
-  pinMode(BADGELINK_PIN, INPUT_PULLUP);
-//  Communications::enableIrReceive();
-}
-
-
-if (Communications::irDataReady()) {
-    auto data = Communications::getIrData();
-    if (Communications::validate_checksum(data)) 
-    {
-      Serial.println();
-      Serial.println(data, BIN);
-      Serial.println(getHardwareTeam(), BIN);
-      Serial.println();
-      
-      if ((data & 0x0007) != getHardwareTeam()) 
-      {  
-        Animations::crash(data & 0x0007);
-        delay(5000);
-        Animations::clear();
-        Animations::team_switch(blasterTeam);
-      }
+    auto packet = Data.readBadge();
+    if (packet.raw > 0) {
+      Serial.print(packet.team);
+      Serial.print(" ");
+      Serial.print(packet.command);
+      Serial.print(" ");
+      Serial.println(packet.parameter);
+      //Data.transmit(ir_packet, eAllDevices);
     }
-  }
-  
+
+    
+    // DataPacket d;
+    // d.team = eTeamRex;
+    // d.trigger_state = 1;
+    // d.command = eCommandShoot;
+    // d.parameter = 0;
+
+    // while (true)
+    //   for(int i=0;i<16;i++)
+    //   {
+    //     Serial.println("Ping");
+    //     d.parameter = i;
+    //     Data.transmit(d, eInfrared);
+    //     delay(1000);
+    //   }

@@ -15,33 +15,23 @@ bool healing_mode = false;
 bool stealth_mode = false;
 bool single_shot_mode = false;
 uint8_t game_mode = 0; // TDB
+
 uint8_t fixed_team = 0;
 uint8_t blaster_team = 0;
+
 bool muted = false;
 bool animated = true;
 uint8_t brightness = 0b11;
 
 void setup()
 {
-
-  pinMode(A0, OUTPUT);
-  
-    while (true)
-    {
-      digitalWrite(A0, HIGH);
-      delay(100);
-      digitalWrite(A0, LOW);
-      delay(100);
-    }
-
-
-
+  setupButtons();
 
   Serial.begin(115200);
 
   Data.init();
 
-  blinkIfNoTeamSelector(); // This is only used when flashing the mc
+  blinkIfNoTeamSelector(); 
 
   pinMode(TRIGGER_PIN, INPUT_PULLUP);
 
@@ -62,52 +52,57 @@ void setup()
   Animations::blaster_start();
 
   delay(1000);
+  blasterReady();
 }
 
 void loop()
 {
-    auto packet = Data.readBadge();
-    if (packet.raw > 0) {
-      Serial.print(packet.team);
-      Serial.print(" ");
-      Serial.print(packet.command);
-      Serial.print(" ");
-      Serial.println(packet.parameter);
-      //Data.transmit(ir_packet, eAllDevices);
-    }
+  if (teamChanged())
+  {
+    Animations::team_switch(blaster_team);
+  }
 
-    // DataPacket d;
-    // d.team = eTeamRex;
-    // d.trigger_state = 1;
-    // d.command = eCommandShoot;
-    // d.parameter = 0;
-
-    // while (true)
-    //   for(int i=0;i<16;i++)
-    //   {
-    //     Serial.println("Ping");
-    //     d.parameter = i;
-    //     Data.transmit(d, eInfrared);
-    //     delay(1000);
-    //   }
-
-  // if (teamChanged())
-  // {
-  //   Animations::team_switch(blaster_team);
-  // }
-  // if (triggerPressed())
-  // {
-  //   uint16_t team = getHardwareTeam();
-  //   // transmit_raw(team, true, true);
-  //   Animations::shoot(blaster_team);
-  // }
+  if (triggerPressed())
+  {
+    uint16_t team = getHardwareTeam();
+    transmitShot();
+    Animations::shoot(blaster_team);
+  }
 
   // Animations::refresh();
 }
 
-bool triggerPressed()
+void transmitShot()
+{
+  DataPacket d;
+  d.team = blaster_team;
+  d.trigger_state = 1;
+  d.command = eCommandShoot;
+  d.parameter = 0; //todo: channel
+
+  Data.transmit(d, eAllDevices);
+}
+
+void setupButtons()
 {
   pinMode(TRIGGER_PIN, INPUT_PULLUP);
+  pinMode(R_TEAM_PIN, INPUT_PULLUP);
+  pinMode(G_TEAM_PIN, INPUT_PULLUP);
+  pinMode(B_TEAM_PIN, INPUT_PULLUP);
+}
+
+void blasterReady()
+{
+  DataPacket d;
+  d.team = getHardwareTeam();
+  d.trigger_state = 0;
+  d.command = eCommandBlasterAck;
+  d.parameter = 0;
+  Data.transmit(d, eInfrared);
+}
+
+bool triggerPressed()
+{
   return can_shoot && !digitalRead(TRIGGER_PIN);
 }
 
@@ -136,10 +131,6 @@ bool teamChanged()
 
 uint8_t getHardwareTeam()
 {
-  pinMode(R_TEAM_PIN, INPUT_PULLUP);
-  pinMode(G_TEAM_PIN, INPUT_PULLUP);
-  pinMode(B_TEAM_PIN, INPUT_PULLUP);
-
   byte r = (1 - digitalRead(R_TEAM_PIN)) * 1;
   byte g = (1 - digitalRead(G_TEAM_PIN)) * 2;
   byte b = (1 - digitalRead(B_TEAM_PIN)) * 4;
