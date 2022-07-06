@@ -129,7 +129,7 @@ namespace Animations
     Leds.clear();
 
     uint32_t color;
-
+    //todo: allow for other colors
     if (team == 0b001)
       color = 0x00FF0000;
     if (team == 0b010)

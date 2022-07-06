@@ -91,7 +91,7 @@ void _data::setup_ir_carrier()
 void _data::enableReceive(DeviceType device)
 {
   PCICR |= 0b00000100; // turn on port D
-  PCMSK2 = 0;
+  // PCMSK2 = 0; //causes bug when only disabeling and enabeling one device
   if (device & eInfrared)
   {
     pinMode(IR_IN1_PIN, INPUT);
@@ -288,6 +288,17 @@ void _data::transmit(DataPacket packet, DeviceType device)
   // 2) Clear and recalculate CRC
   packet.crc = 0;
   packet = calculateCRC(packet);
+  Serial.print("Team: ");
+  for (int i=0; i<3; i++) Serial.print(bitRead(packet.raw,2-i));
+  Serial.print(" Trigger: ");
+  for (int i=0; i<1; i++) Serial.print(bitRead(packet.raw,3-i));
+  Serial.print(" Command: ");
+  for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,7-i));
+  Serial.print(" Parameter: ");
+  for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,11-i));
+  Serial.print(" CRC: ");
+  for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,15-i));
+  Serial.println();
 
   prepare_pulse_train(packet);
 
