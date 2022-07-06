@@ -10,7 +10,7 @@
 /* Blaster state variables */
 // if false the trigger is disabled. Set by the badge (trigger field)
 bool can_shoot = true;
-uint8_t ir_channel = 0b0001;   //default channel
+uint8_t ir_channel = 0b0000;   //default channel
 bool healing_mode = false;
 bool stealth_mode = false;
 bool single_shot_mode = false;
@@ -132,7 +132,7 @@ void blasterReady()
   d.trigger_state = 0;
   d.command = eCommandBlasterAck;
   d.parameter = 0;
-  Data.transmit(d, eInfrared);
+  Data.transmit(d, eBadge);
 }
 
 bool triggerPressed()
