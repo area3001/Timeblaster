@@ -80,8 +80,9 @@ void loop()
           handle_being_shot(ir_packet);
         }
 
-
-  if (game_mode == eGMZombie){
+  //bug: changing teams after healer fixed blaster causes new infection; disable team change
+  //bug: should not be able to change team when in zombie mode
+  if (game_mode == eGMZombie && activeTeam(true) != activeTeam(false)){
     Animations::FlickerTeam(activeTeam(), activeTeam(true));
   }
   //Animations::refresh();
@@ -119,6 +120,7 @@ void handle_being_shot(DataPacket packet){
     Data.readBadge(); //clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
     Animations::clear();
     zombie_team = packet.team;
+    if (packet.team == activeTeam(true)) zombie_team = 0;
     Animations::team_switch(activeTeam());
     break;  
   default:
