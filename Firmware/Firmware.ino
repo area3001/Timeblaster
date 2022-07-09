@@ -7,6 +7,12 @@
 #define B_TEAM_PIN 8
 #define TRIGGER_PIN 3
 
+enum GameMode: uint8_t{
+  eGMTimeout = 0,
+  eGMZombie = 1,
+  eGMSuddenDeath = 2
+};
+
 /* Blaster state variables */
 // if false the trigger is disabled. Set by the badge (trigger field)
 bool can_shoot = true;
@@ -14,10 +20,11 @@ uint8_t ir_channel = 0b0000;   //default channel
 bool healing_mode = false;
 bool stealth_mode = false;
 bool single_shot_mode = false;
-uint8_t game_mode = 0; // TDB
+uint8_t game_mode = eGMZombie; //eGMTimeout
 
-uint8_t fixed_team = 0;   //the team set by the badge (over rules the blaster if != 0)
+uint8_t badge_team = 0;   //the team set by the badge (over rules the blaster if != 0)
 uint8_t blaster_team = 0; //the team set on the blaster
+uint8_t zombie_team = 0;  //zombie team overrules all other team settings but can be reset to 0 if the badge sets or resets the team. todo
 
 bool muted = false;
 bool animated = true;
@@ -58,41 +65,66 @@ void loop()
     Animations::shoot(blaster_team);
   }
 
-  auto bage_packet = Data.readBadge();
-  if (bage_packet.command == eCommandSetChannel){
-    ir_channel = bage_packet.parameter;
+  auto badge_packet = Data.readBadge();
+  if (badge_packet.command == eCommandSetChannel){
+    ir_channel = badge_packet.parameter;
     blasterReady();
   }
 
   auto ir_packet = Data.readIr();
+
   if (ir_packet.command == eCommandShoot && 
         ir_packet.parameter == ir_channel && 
         ir_packet.trigger_state == 1 &&
         ir_packet.team != activeTeam()){
-          //send data to badge
-          ir_packet.trigger_state = 0; // we are not fireing
-          Data.transmit(ir_packet, eBadge);
-          // action here depends on game mode
-          Animations::crash(ir_packet.team);
-          delay(1000);
-          Data.readIr(); //clear buffer
-          Animations::clear();
-          Animations::team_switch(blaster_team);
+          handle_being_shot(ir_packet);
         }
 
-  //bug: sometimes the blaster does not receive data anymore over IR
-  //changing team & shoting sometimes solves it
 
-  Animations::refresh();
+  if (game_mode == eGMZombie){
+    Animations::FlickerTeam(activeTeam(), activeTeam(true));
+  }
+  //Animations::refresh();
 }
 
-uint8_t activeTeam()
+
+uint8_t activeTeam(bool ignore_zombie_team)
 {
- uint8_t team = fixed_team;
-  if (team == 0) team = blaster_team;
-  return team;
+  if (zombie_team && ! ignore_zombie_team) return zombie_team;
+  if (badge_team) return badge_team;
+  return blaster_team; //todo replace by switch readout
 }
+uint8_t activeTeam() {return activeTeam(false);}
 
+
+void handle_being_shot(DataPacket packet){
+  //send data to badge
+  packet.trigger_state = 0; // we are not fireing
+  Data.transmit(packet, eBadge);
+
+  switch (game_mode)
+  {
+  case eGMTimeout:
+    // action here depends on game mode
+    Animations::crash(packet.team);
+    Data.readIr(); //clear buffer
+    Data.readBadge(); //clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
+    Animations::clear();
+    Animations::team_switch(activeTeam());
+    break;
+  case eGMZombie:
+    // action here depends on game mode
+    Animations::crash(packet.team);
+    Data.readIr(); //clear buffer
+    Data.readBadge(); //clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
+    Animations::clear();
+    zombie_team = packet.team;
+    Animations::team_switch(activeTeam());
+    break;  
+  default:
+    break;
+  }
+}
 
 void healingShot()
 {
@@ -142,11 +174,11 @@ bool triggerPressed()
 
 bool teamChanged()
 {
-  if (fixed_team)
+  if (badge_team)
   {
-    if (fixed_team != blaster_team)
+    if (badge_team != blaster_team)
     {
-      blaster_team = fixed_team;
+      blaster_team = badge_team;
       return true;
     }
     return false;
