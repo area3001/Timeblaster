@@ -221,7 +221,7 @@ DataPacket _data::readBadge()
     if (Packet.crc == 0) 
     {
       return Packet;   
-      }
+    }
   }
 
   auto emptyPacket = DataPacket();
@@ -281,37 +281,37 @@ DataPacket _data::calculateCRC(DataPacket packet)
 
 void _data::transmit(DataPacket packet, DeviceType device)
 {
-  Serial.println("TRANSMITTING PACKET");
+  //Serial.println("TRANSMITTING PACKET");
   // 1) Disable Receiving for each device
   disableReceive(device);
 
   // 2) Clear and recalculate CRC
   packet.crc = 0;
   packet = calculateCRC(packet);
-  Serial.print("Team: ");
+  //Serial.print("Team: ");
   for (int i=0; i<3; i++) Serial.print(bitRead(packet.raw,2-i));
-  Serial.print(" Trigger: ");
+  //Serial.print(" Trigger: ");
   for (int i=0; i<1; i++) Serial.print(bitRead(packet.raw,3-i));
-  Serial.print(" Command: ");
+  //Serial.print(" Command: ");
   for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,7-i));
-  Serial.print(" Parameter: ");
+  //Serial.print(" Parameter: ");
   for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,11-i));
-  Serial.print(" CRC: ");
+  //Serial.print(" CRC: ");
   for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,15-i));
-  Serial.println();
+  //Serial.println();
 
   prepare_pulse_train(packet);
 
   if (device & eBadge)
   {
-    Serial.println("TO BADGE");
+    //Serial.println("TO BADGE");
     // stop RX
     // set badge send
     transmit_badge = true;
   }
   if (device & eInfrared)
   {
-    Serial.println("TO IR");
+    //Serial.println("TO IR");
     // stop RX
     // set ir send
     transmit_ir = true;
