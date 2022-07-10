@@ -69,7 +69,7 @@ void loop()
   if (badge_packet.command == eCommandSetChannel){
     Serial.println("Received eCommandSetChannel");
     ir_channel = badge_packet.parameter;
-    delay(10);
+    delay(4);
     blasterReady();
   }
 

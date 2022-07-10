@@ -288,17 +288,19 @@ void _data::transmit(DataPacket packet, DeviceType device)
   // 2) Clear and recalculate CRC
   packet.crc = 0;
   packet = calculateCRC(packet);
-  //Serial.print("Team: ");
+  /*
+  Serial.print("Team: ");
   for (int i=0; i<3; i++) Serial.print(bitRead(packet.raw,2-i));
-  //Serial.print(" Trigger: ");
+  Serial.print(" Trigger: ");
   for (int i=0; i<1; i++) Serial.print(bitRead(packet.raw,3-i));
-  //Serial.print(" Command: ");
+  Serial.print(" Command: ");
   for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,7-i));
-  //Serial.print(" Parameter: ");
+  Serial.print(" Parameter: ");
   for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,11-i));
-  //Serial.print(" CRC: ");
+  Serial.print(" CRC: ");
   for (int i=0; i<4; i++) Serial.print(bitRead(packet.raw,15-i));
-  //Serial.println();
+  Serial.println();
+  */
 
   prepare_pulse_train(packet);
 
