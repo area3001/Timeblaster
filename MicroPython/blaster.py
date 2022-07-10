@@ -1,14 +1,61 @@
-"""
-    Example code to interface from ESP32/Badge with the blaster
-"""
-
 from machine import Pin
-from time import ticks_us
+from time import ticks_us, sleep
 import esp32
 
+class Enum():
+    """
+    Poor man's Enum
+    """
+    _lookup_table:Dict[int,str] = None
+    @classmethod
+    def lookup(cls,number):
+        if not cls._lookup_table:
+            cls._lookup_table = {getattr(cls,x):x for x in dir(cls) if not x.startswith("_") and not callable(getattr(cls,x))}
+        return cls._lookup_table.get(number)
+
+class Command(Enum):
+    """
+    Implemented commands
+    """
+    none = 0
+    shoot = 1
+    heal = 2
+    channel = 3
+    trigger_action = 4
+    game_mode = 5
+    animation = 7
+    team_change = 8
+    chatter = 9
+    settings = 10
+    ack = 15
+    
+class Team(Enum):
+    """
+    Available teams
+    """
+    none = 0
+    rex = 1
+    giggles = 2
+    yellow = 3
+    buzz = 4
+    magenta = 5
+    azure = 6
+    white = 7
+    
+class GameMode(Enum):
+    timeout = 0
+    zombie = 1
+    sudden_death = 2
+    
+class Animation(Enum):
+    shoot = 1
+    boot = 2
+    r2d2 = 3
+    crash = 4
+    coin = 5
+    level_up = 6
+
 class DataPacket():
-    COMMAND = ["NONE","SHOOT","HEAL","CHANNEL","FIRETYPE","GAMEMODE","GOTHIT","ANIMATION","TEAMSWITCH","CHATTER","PULLTRIGGER","SETFLAGSA","RESERVED","RESERVED","RESERVED","ACK"]
-    TEAM = ["NONE","REX","GIGGLES","YELLOW","BUZZ","MAGENTA","AZURE","WHITE"]
     def __init__(self, raw = 0):
         self._raw = raw
   
@@ -22,16 +69,14 @@ class DataPacket():
         return (self._raw & 0b0000000000000111) >> 0
     
     @team.setter
-    def team(self, value:Union[str,int]) -> None:
-        if isinstance(value, str):
-            value = DataPacket.TEAM.index(value.upper())
+    def team(self, value:int) -> None:
         if isinstance(value, int):
             self._raw &= ~0b111
             self._raw |= (value & 0b111)
     
     @property
     def team_str(self) -> str:
-        return DataPacket.TEAM[self.team]
+        return team.lookup(self.team)
     
     # TRIGGER
     @property
@@ -50,16 +95,14 @@ class DataPacket():
         return (self._raw & 0b0000000011110000) >> 4
     
     @command.setter
-    def command(self, value:Union[str,int]) -> None:
-        if isinstance(value, str):
-            value = DataPacket.COMMAND.index(value.upper())
+    def command(self, value:int) -> None:
         if isinstance(value, int):
             self._raw &= ~(0b111 << 4)
             self._raw |= (value & 0b111) << 4
     
     @property
     def command_str(self) -> str:
-        return DataPacket.COMMAND[self.command]
+        return command.lookup(self.command)
     
     # PARAMETER
     @property
@@ -108,7 +151,7 @@ class DataPacket():
         return calc_crc
         
     
-    def __repr__(self): return(f"{self.team_str}, {self.trigger=}, {self.command_str}, {self.parameter=}, {self.crc=}, {self.calculate_crc()=}")
+    def __repr__(self): return(f"{self.team}, {self.trigger=}, {self.command}, {self.parameter=}, {self.crc=}, {self.calculate_crc()=}")
 
 
 class Reader():
@@ -116,7 +159,8 @@ class Reader():
         self._can_transmit = can_transmit
         self._pin_nr = pin
         self._reset()
-        self._pin = None
+        self._pin = Pin(self._pin_nr, Pin.IN, Pin.PULL_UP)
+        self.start()
     
     def _reset(self) -> None:
         self._raw = 0
@@ -127,7 +171,7 @@ class Reader():
         t = ticks_us()
         delta = t - self._ref_time
         self._ref_time = t
-        if self._bits_read == 16: return
+        if self._bits_read == 16: return #todo: verify CRC and reset if requried
         if self._bits_read > 16: self._reset()
         if delta > (12600 * 0.8) and delta < (12600 / 0.8):
             self._reset()
@@ -141,7 +185,10 @@ class Reader():
             self._reset()
             
     def start(self) -> None:
-        self._pin = Pin(self._pin_nr, Pin.IN, Pin.PULL_UP)
+        """
+        Start listening on the defined hardware pin for data
+        """
+        self._pin.init(self._pin.IN, self._pin.PULL_UP)
         self._reset()
         self._pin.irq(trigger=Pin.IRQ_RISING, handler=self._handle_irq)
         
@@ -159,7 +206,8 @@ class Reader():
     def transmit_packet(self, packet: DataPacket) -> None:
         if not self._can_transmit: return
         self.stop()
-        link = esp32.RMT(0, pin=Pin(self._pin_nr, Pin.OUT), idle_level=False, clock_div=200)
+        self._pin.init(self._pin.OUT)
+        link = esp32.RMT(0, pin=self._pin, idle_level=False, clock_div=200)
         packet.crc = 0
         packet.calculate_crc(apply=True)
         #time.sleep(.1)
@@ -176,28 +224,97 @@ class Reader():
         link.deinit()
         self.start()
         
+class Blaster():
+    def __init__(self):
+        self._blaster_link = Reader(04, can_transmit=True)
+        self._ir_link = Reader(25)
+        self._team = Team.none #None is not frozen
+    
+    def set_channel(self, channel_id:int):
+        p = DataPacket(0)
+        p.team = Team.none
+        p.trigger = False
+        p.command = Command.channel
+        p.parameter = channel_id
+        self._blaster_link.transmit_packet(p)
+        sleep(.1)
+        response = self._blaster_link.read_packet()
+        return response
         
-def go():
-    b = Reader(04, can_transmit=True)
-    r = Reader(25) #25=ir     4=blaster
-    r.start()
-    while (True):
-        if p := r.read_packet():
-            if p.calculate_crc() == p.crc:
-                print(p)
-                b.transmit_packet(p)
-            else:
-                print("CRC fail")
+    def set_trigger_action(self, stealth=False, single_shot=False, healing=False, disable=False):
+        p = DataPacket(0)
+        p.team = team.none
+        p.trigger = False
+        p.command = Command.trigger_action
+        
+        param = 0
+        if disable: param += 1
+        if healing: param += 2
+        if single_shot: param += 4
+        if stealth: param += 8
+        
+        p.parameter = param
+        self._blaster_link.transmit_packet(p)
+        sleep(.1)
+        response = self._blaster_link.read_packet()
+        return response
+        
+    def set_team(self, team:int):
+        self._team = team
+        p = DataPacket(0)
+        p.team = self._team
+        p.trigger = False
+        p.command = Command.team_change
+        p.parameter = 0
+        self._blaster_link.transmit_packet(p)
+        
+    def set_game_mode(self, mode:int, team: int = 0):
+        """
+        Set game mode and optionally the team.
+        team:0 means let the blaster decide
+        """
+        self._team = team
+        p = DataPacket(0)
+        p.team = self._team
+        p.trigger = False
+        p.command = Command.game_mode
+        p.parameter = mode
+        self._blaster_link.transmit_packet(p)
+        sleep(.1)
+        response = self._blaster_link.read_packet()
+        return response
+        
+    def play_animation(self, animation:int):
+        ...
+        
+    def start_chatter(self):
+        ...
+        
+    def settings(self, mute:bool=False, brightness:int=7):
+        ...
+        
+    def get_ir_shot(self):
+        ...
+        #auto forward to blaster
+        
+    def get_blaster_shot(self):
+        ...
+        
+    def log(self):
+        while(True):
+            if p := self._blaster_link.read_packet():
+                if p.calculate_crc() == p.crc:
+                    print("BLASTER:", p)
+                else:
+                    print("BLASTER: CRC Failed")
+            if p := self._ir_link.read_packet():
+                if p.calculate_crc() == p.crc:
+                    print("IR:", p)
+                else:
+                    print("IR: CRC Failed")
+        
+blaster = Blaster()
+        
 
-from time import sleep
-def go_tx():
-    b = Reader(04, can_transmit=True)
-    p = DataPacket(0)
-    p.team = "BUZZ"
-    p.trigger = False
-    p.command = "SHOOT"
-    p.parameter = 15
-    while (True):
-        b.transmit_packet(p)
-        print(p)
-        sleep(1)
+
+

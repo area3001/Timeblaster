@@ -20,10 +20,10 @@ uint8_t ir_channel = 0b0000;   //default channel
 bool healing_mode = false;
 bool stealth_mode = false;
 bool single_shot_mode = false;
-uint8_t game_mode = eGMZombie; //eGMTimeout
+uint8_t game_mode = eGMTimeout;
 
+uint8_t last_active_team = -1;
 uint8_t badge_team = 0;   //the team set by the badge (over rules the blaster if != 0)
-uint8_t blaster_team = 0; //the team set on the blaster
 uint8_t zombie_team = 0;  //zombie team overrules all other team settings but can be reset to 0 if the badge sets or resets the team. todo
 
 bool muted = false;
@@ -50,44 +50,22 @@ void setup()
 
   delay(1000);
   blasterReady();
+  Serial.println("Blaster Ready");
 }
 
 void loop()
 {
-  if (teamChanged())
-  {
-    Animations::team_switch(blaster_team);
-  }
+  if (teamChanged()) Animations::team_switch(activeTeam());
 
   if (triggerPressed())
   {
     damageShot();
-    Animations::shoot(blaster_team);
+    Animations::shoot(activeTeam());
   }
 
   auto badge_packet = Data.readBadge();
-  if (badge_packet.command == eCommandSetChannel)
-  {
-    Serial.println("Received eCommandSetChannel");
-    ir_channel = badge_packet.parameter;
-    delay(4);
-    blasterReady();
-  } else if((badge_packet.command == eCommandSetTriggerAction))
-  {
-    Serial.println("Received eCommandSetTriggerAction");
-    bool stealth = badge_packet.parameter & 1;
-    bool single_shot = badge_packet.parameter & 2;
-    bool heal = badge_packet.parameter & 4;
-    bool disable = badge_packet.parameter & 8;
-    Serial.print(disable);
-    Serial.print(heal);
-    Serial.print(single_shot);
-    Serial.println(stealth);
-    
-    delay(4);
-    blasterReady();
-
-  }
+  handle_badge_packet(badge_packet);
+ 
 
   auto ir_packet = Data.readIr();
 
@@ -106,12 +84,76 @@ void loop()
   //Animations::refresh();
 }
 
+void handle_badge_packet(DataPacket packet)
+{
+  if (packet.command == 0) return;
+  switch (packet.command)
+  {
+  case eCommandSetChannel:
+    setChannel(packet);
+    break;
+  case eCommandSetTriggerAction:
+    setTriggerAction(packet);
+    break;
+  case eCommandSetGameMode:
+    setGameMode(packet);
+    break;
+  default:
+    return;
+  }
+  delay(4);
+  blasterReady();  
+}
+
+void setGameMode(DataPacket packet){
+Serial.print("Received eCommandSetGameMode M:");
+    Serial.print(packet.parameter);
+    Serial.print(" T:");
+    Serial.println(packet.team);
+    if (packet.parameter ==  eGMTimeout){
+      game_mode = packet.parameter;
+      can_shoot = true;
+      healing_mode = false;
+      single_shot_mode = false;
+      zombie_team = 0;
+      badge_team = packet.team;
+    }
+    else if (packet.parameter ==  eGMZombie){
+       game_mode = packet.parameter;
+       can_shoot = true;
+       healing_mode = false;
+       single_shot_mode = false;
+       zombie_team = 0;
+       badge_team = packet.team;
+    }
+    else if (packet.parameter ==  eGMSuddenDeath){
+       game_mode = packet.parameter;
+       can_shoot = true;
+       healing_mode = false;
+       single_shot_mode = false;
+       zombie_team = 0;
+       badge_team = packet.team;
+    }
+}
+
+void setTriggerAction(DataPacket packet){
+  Serial.println("Received eCommandSetTriggerAction");
+    bool stealth = packet.parameter & 1;
+    bool single_shot = packet.parameter & 2;
+    bool heal = packet.parameter & 4;
+    bool disable = packet.parameter & 8;
+}
+
+void setChannel(DataPacket packet){
+  Serial.println("Received eCommandSetChannel");
+  ir_channel = packet.parameter;
+}
 
 uint8_t activeTeam(bool ignore_zombie_team)
 {
   if (zombie_team && ! ignore_zombie_team) return zombie_team;
   if (badge_team) return badge_team;
-  return blaster_team; //todo replace by switch readout
+  return getHardwareTeam();
 }
 uint8_t activeTeam() {return activeTeam(false);}
 
@@ -194,25 +236,12 @@ bool triggerPressed()
 
 bool teamChanged()
 {
-  if (badge_team)
+  if(last_active_team != activeTeam())
   {
-    if (badge_team != blaster_team)
-    {
-      blaster_team = badge_team;
-      return true;
-    }
-    return false;
+    last_active_team = activeTeam();
+    return true;
   }
-  else
-  {
-    uint8_t hardwareTeam = getHardwareTeam();
-    if (hardwareTeam != 0 && blaster_team != hardwareTeam)
-    {
-      blaster_team = hardwareTeam;
-      return true;
-    }
-    return false;
-  }
+  return false;
 }
 
 uint8_t getHardwareTeam()
