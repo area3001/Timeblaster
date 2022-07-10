@@ -66,11 +66,27 @@ void loop()
   }
 
   auto badge_packet = Data.readBadge();
-  if (badge_packet.command == eCommandSetChannel){
+  if (badge_packet.command == eCommandSetChannel)
+  {
     Serial.println("Received eCommandSetChannel");
     ir_channel = badge_packet.parameter;
     delay(4);
     blasterReady();
+  } else if((badge_packet.command == eCommandSetTriggerAction))
+  {
+    Serial.println("Received eCommandSetTriggerAction");
+    bool stealth = badge_packet.parameter & 1;
+    bool single_shot = badge_packet.parameter & 2;
+    bool heal = badge_packet.parameter & 4;
+    bool disable = badge_packet.parameter & 8;
+    Serial.print(disable);
+    Serial.print(heal);
+    Serial.print(single_shot);
+    Serial.println(stealth);
+    
+    delay(4);
+    blasterReady();
+
   }
 
   auto ir_packet = Data.readIr();
