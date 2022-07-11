@@ -59,8 +59,17 @@ void loop()
 
   if (triggerPressed())
   {
-    damageShot();
-    Animations::shoot(activeTeam());
+    if (can_shoot)
+    {
+      damageShot();
+      Animations::shoot(activeTeam());
+    } else{
+      Animations::error();
+    }
+    if(single_shot_mode){
+      single_shot_mode =false;
+      can_shoot=false;
+    }
     Animations::stealth(false);
   }
 
@@ -75,8 +84,7 @@ void loop()
         ir_packet.trigger_state == 1 &&
         ir_packet.team != activeTeam()){
           Animations::stealth(false);
-          handle_being_shot(ir_packet);
-          
+          handle_being_shot(ir_packet);         
         }
 
   //bug: changing teams after healer fixed blaster causes new infection; disable team change
@@ -142,10 +150,11 @@ Serial.print("Received eCommandSetGameMode M:");
 void setTriggerAction(DataPacket packet){
   Serial.println("Received eCommandSetTriggerAction");
     stealth_mode = packet.parameter & 8;
-    bool single_shot = packet.parameter & 4;
+    single_shot_mode = packet.parameter & 4;
     bool heal = packet.parameter & 2;
     bool disable = packet.parameter & 1;
 
+    can_shoot=true;
     Animations::stealth(stealth_mode);
 }
 
@@ -236,7 +245,7 @@ void blasterReady()
 
 bool triggerPressed()
 {
-  return can_shoot && !digitalRead(TRIGGER_PIN);
+  return !digitalRead(TRIGGER_PIN);
 }
 
 bool teamChanged()

@@ -87,6 +87,18 @@ namespace Animations
     Buzzer.playFrequency(0);
   };
 
+  void error(){
+    for(int i=0;i<10;i++){
+    Buzzer.playFrequency(200);
+    delay(25);
+    Buzzer.playFrequency(0);
+    delay(25);
+    }
+
+    
+    Buzzer.playFrequency(0);
+  }
+
   void shoot(uint8_t team)
   {
     int mod = team * 2;
@@ -175,7 +187,7 @@ namespace Animations
   {
     Leds.update();
   }
-  
+
   void stealth(bool stealth_mode){
      Leds.stealth(stealth_mode);
      refresh();
