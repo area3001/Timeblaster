@@ -171,6 +171,16 @@ namespace Animations
     delay(1000);
   }
 
+  void refresh()
+  {
+    Leds.update();
+  }
+  
+  void stealth(bool stealth_mode){
+     Leds.stealth(stealth_mode);
+     refresh();
+  }
+
   void clear()
   {
     Leds.clear();
@@ -186,10 +196,7 @@ namespace Animations
     delay(random(50));
   }
 
-  void refresh()
-  {
-    // strip.show();
-  }
+
 
 }
 

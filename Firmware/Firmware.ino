@@ -61,6 +61,7 @@ void loop()
   {
     damageShot();
     Animations::shoot(activeTeam());
+    Animations::stealth(false);
   }
 
   auto badge_packet = Data.readBadge();
@@ -73,7 +74,9 @@ void loop()
         ir_packet.parameter == ir_channel && 
         ir_packet.trigger_state == 1 &&
         ir_packet.team != activeTeam()){
+          Animations::stealth(false);
           handle_being_shot(ir_packet);
+          
         }
 
   //bug: changing teams after healer fixed blaster causes new infection; disable team change
@@ -81,7 +84,7 @@ void loop()
   if (game_mode == eGMZombie && activeTeam(true) != activeTeam(false)){
     Animations::FlickerTeam(activeTeam(), activeTeam(true));
   }
-  //Animations::refresh();
+  
 }
 
 void handle_badge_packet(DataPacket packet)
@@ -138,10 +141,12 @@ Serial.print("Received eCommandSetGameMode M:");
 
 void setTriggerAction(DataPacket packet){
   Serial.println("Received eCommandSetTriggerAction");
-    bool stealth = packet.parameter & 1;
-    bool single_shot = packet.parameter & 2;
-    bool heal = packet.parameter & 4;
-    bool disable = packet.parameter & 8;
+    stealth_mode = packet.parameter & 8;
+    bool single_shot = packet.parameter & 4;
+    bool heal = packet.parameter & 2;
+    bool disable = packet.parameter & 1;
+
+    Animations::stealth(stealth_mode);
 }
 
 void setChannel(DataPacket packet){

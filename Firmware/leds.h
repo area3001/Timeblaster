@@ -20,6 +20,7 @@ public:
   void update();
   static uint32_t wheel(byte index);
   void clear();
+  void stealth(bool status);
 };
 
 extern _leds &Leds;

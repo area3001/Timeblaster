@@ -39,6 +39,7 @@ static uint32_t _leds::wheel(byte WheelPos)
 
 void _leds::update()
 {
+
   strip.show();
 }
 
@@ -82,7 +83,7 @@ void _leds::setDiskColor(byte disk, uint32_t color)
       setPixelColor(i, color);
     }
   }
-  strip.show();
+  update();
 }
 
 void _leds::init()
@@ -90,14 +91,20 @@ void _leds::init()
   strip.begin();
   strip.setBrightness(255);
   strip.clear();
-  strip.show(); // is show required after clear?
+  update();
 }
 
 void _leds::clear()
 {
   for (int i = 0; i < 9; i++)
     strip.setPixelColor(i, 0);
-  strip.show();
+  update();
+}
+
+void _leds::stealth(bool status){
+  if (status){
+      strip.setBrightness(10);
+  } else   strip.setBrightness(255);
 }
 
 _leds &Leds = Leds.getInstance();
