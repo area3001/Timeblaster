@@ -53,33 +53,31 @@ namespace Animations
     Leds.clear();
   }
 
-  uint32_t teamToColor(uint8_t team){
+  uint32_t teamToColor(uint8_t team, uint8_t level){
      uint32_t color = 0;
+     uint32_t rgb = level;
       //todo: allow for other colors
       if (team & 0b001)
-        color |= 0x00FF0000;
+        color |= (rgb << 16);
       if (team & 0b010)
-        color |= 0x0000FF00;
+        color |= (rgb << 8);
       if (team & 0b100)
-        color |= 0x000000FF;
+        color |= (rgb << 0);
       return color;
   }
 
-  void team_switch(uint8_t team)
+  void set_team_status(uint8_t team, bool can_shoot){
+      Leds.setPixelColor(0, teamToColor(team,255));
+      if (can_shoot)
+        Leds.setDiskColor(1, teamToColor(team,25));
+      else
+        Leds.setDiskColor(1, 0);
+      Leds.update();
+  }
+
+  void team_switch(uint8_t team, bool can_shoot)
   {
-    switch (team)
-    {
-    case 0b001:
-      Leds.setPixelColor(0, 0xFF0000);
-      break;
-    case 0b010:
-      Leds.setPixelColor(0, 0x00FF00);
-      break;
-    case 0b100:
-      Leds.setPixelColor(0, 0x0000FF);
-      break;
-    }
-    Leds.update();
+    set_team_status(team, can_shoot);
 
     Buzzer.playNote(G, 4, 35);
     Buzzer.playNote(G, 5, 35);
@@ -146,6 +144,7 @@ namespace Animations
     Leds.setDiskColor(1, 0);
     Leds.setDiskColor(2, 0);
     Leds.setDiskColor(3, 0);
+    set_team_status(team, true);
   }
 
   void crash(uint8_t team)
@@ -201,9 +200,9 @@ namespace Animations
   void FlickerTeam(uint8_t team, uint8_t base_team)
   {
     auto r = random(10);
-    if (r == 0) Leds.setPixelColor(0,teamToColor(base_team));
+    if (r == 0) Leds.setPixelColor(0,teamToColor(base_team,255));
     else if (r < 4) Leds.setPixelColor(0,0);      
-    else Leds.setPixelColor(0,teamToColor(team));
+    else Leds.setPixelColor(0,teamToColor(team,255));
     Leds.update();
     delay(random(50));
   }

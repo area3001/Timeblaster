@@ -54,6 +54,7 @@ void _leds::setPixelColor(byte pixel, uint32_t color)
     color = (red << 16) | (green << 8) | blue;
   }
   strip.setPixelColor(pixel, color);
+  update();
 }
 
 void _leds::setDiskColor(byte disk, uint32_t color)
@@ -103,7 +104,7 @@ void _leds::clear()
 
 void _leds::stealth(bool status){
   if (status){
-      strip.setBrightness(10);
+      strip.setBrightness(1);
   } else   strip.setBrightness(255);
 }
 

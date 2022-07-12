@@ -55,7 +55,7 @@ void setup()
 
 void loop()
 {
-  if (teamChanged()) Animations::team_switch(activeTeam());
+  if (teamChanged()) Animations::team_switch(activeTeam(), can_shoot);
 
   if (triggerPressed())
   {
@@ -74,6 +74,7 @@ void loop()
     if(single_shot_mode){
       single_shot_mode =false;
       can_shoot=false;
+      Animations::set_team_status(activeTeam(), can_shoot);
     }
     Animations::stealth(false);
   }
@@ -157,10 +158,10 @@ void setTriggerAction(DataPacket packet){
     stealth_mode = packet.parameter & 8;
     single_shot_mode = packet.parameter & 4;
     healing_mode = packet.parameter & 2;
-    bool disable = packet.parameter & 1;
+    can_shoot = !packet.parameter & 1;
 
-    can_shoot=true;
     Animations::stealth(stealth_mode);
+    Animations::set_team_status(activeTeam(), can_shoot);
 }
 
 void setChannel(DataPacket packet){
@@ -190,7 +191,7 @@ void handle_being_shot(DataPacket packet){
     Data.readIr(); //clear buffer
     Data.readBadge(); //clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
     Animations::clear();
-    Animations::team_switch(activeTeam());
+    Animations::team_switch(activeTeam(), can_shoot);
     break;
   case eGMZombie:
     // action here depends on game mode
@@ -201,7 +202,7 @@ void handle_being_shot(DataPacket packet){
     zombie_team = packet.team;
     healing_mode = false; //no such thing as healing zombies
     if (packet.team == activeTeam(true)) zombie_team = 0;
-    Animations::team_switch(activeTeam());
+    Animations::team_switch(activeTeam(), can_shoot);
     break;  
   default:
     break;
