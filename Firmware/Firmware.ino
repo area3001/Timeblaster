@@ -104,6 +104,8 @@ void loop()
 void handle_badge_packet(DataPacket packet)
 {
   if (packet.command == 0) return;
+  Serial.println("Received message from badge");
+
   switch (packet.command)
   {
   case eCommandSetChannel:
@@ -114,6 +116,9 @@ void handle_badge_packet(DataPacket packet)
     break;
   case eCommandSetGameMode:
     setGameMode(packet);
+    break;
+  case eCommandTeamChange:
+    setTeamColor(packet);
     break;
   default:
     return;
@@ -153,6 +158,11 @@ Serial.print("Received eCommandSetGameMode M:");
     }
 }
 
+void setTeamColor(DataPacket packet){
+  Serial.println("Received eCommandTeamChange");
+  badge_team = packet.team;
+}
+
 void setTriggerAction(DataPacket packet){
   Serial.println("Received eCommandSetTriggerAction");
     stealth_mode = packet.parameter & 8;
@@ -173,7 +183,8 @@ uint8_t activeTeam(bool ignore_zombie_team)
 {
   if (zombie_team && ! ignore_zombie_team) return zombie_team;
   if (badge_team) return badge_team;
-  return getHardwareTeam();
+  auto hardwareTeam=getHardwareTeam();
+  if (hardwareTeam==0) return last_active_team;
 }
 uint8_t activeTeam() {return activeTeam(false);}
 

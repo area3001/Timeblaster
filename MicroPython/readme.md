@@ -27,10 +27,19 @@ blaster.set_channel(channel_id)
    * healing   
      When this is set the blaster sends out a healing pulse instead of a damage pulse. 
    * disable   
-     disables the blaster trigger button
+     disables the blaster trigger button   
 
+   All options are false by default
 
 ```python
 blaster.set_trigger_action(stealth=True|False, single_shot=True|False, healing=True|False, disable=True|False)
+```   
+
+4) Set Team color.   
+   The blaster has 7 teams to play with. 3 of them can be set by the hardware swithch.
+   All 7 can be set via the set team color command
+
+```python
+blaster.set_team(Team.rex)
+#team can be rex, giggle, buz, yellow, magenta, azure and white
 ```
-   All options are false by default

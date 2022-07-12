@@ -60,7 +60,7 @@ namespace Animations
       if (team & 0b001)
         color |= (rgb << 16);
       if (team & 0b010)
-        color |= (rgb << 8);
+        color |= ((rgb/2) << 8);
       if (team & 0b100)
         color |= (rgb << 0);
       return color;
@@ -83,6 +83,7 @@ namespace Animations
     Buzzer.playNote(G, 5, 35);
     Buzzer.playNote(G, 6, 35);
     Buzzer.playFrequency(0);
+    delay(100); //helps debouncing
   };
 
   void error(){

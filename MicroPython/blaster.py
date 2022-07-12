@@ -35,7 +35,7 @@ class Team(Enum):
     """
     none = 0
     rex = 1
-    giggles = 2
+    giggle = 2
     yellow = 3
     buzz = 4
     magenta = 5
@@ -97,8 +97,8 @@ class DataPacket():
     @command.setter
     def command(self, value:int) -> None:
         if isinstance(value, int):
-            self._raw &= ~(0b111 << 4)
-            self._raw |= (value & 0b111) << 4
+            self._raw &= ~(0b1111 << 4)
+            self._raw |= (value & 0b1111) << 4
     
     @property
     def command_str(self) -> str:
@@ -231,17 +231,28 @@ class Blaster():
         self._team = Team.none #None is not frozen
     
     def set_channel(self, channel_id:int):
+        """
+        Sets the IR channel (0..15).
+        Only blasters on the same IR channel can communicate via IR.
+        """
+        if channel_id < 0 or channel_id > 15: return False
         p = DataPacket(0)
         p.team = Team.none
         p.trigger = False
         p.command = Command.channel
         p.parameter = channel_id
         self._blaster_link.transmit_packet(p)
-        sleep(.1)
-        response = self._blaster_link.read_packet()
-        return response
+        for i in range(10):
+            sleep(.01)
+            response = self._blaster_link.read_packet()
+            if response and response.command == Command.ack:
+                return True
+        return False
         
     def set_trigger_action(self, stealth=False, single_shot=False, healing=False, disable=False):
+        """
+        Sets various trigger action flags
+        """
         p = DataPacket(0)
         p.team = Team.none
         p.trigger = False
@@ -252,12 +263,14 @@ class Blaster():
         if healing: param += 2
         if single_shot: param += 4
         if stealth: param += 8
-        
         p.parameter = param
         self._blaster_link.transmit_packet(p)
-        sleep(.1)
-        response = self._blaster_link.read_packet()
-        return response
+        for i in range(10):
+            sleep(.01)
+            response = self._blaster_link.read_packet()
+            if response and response.command == Command.ack:
+                return True
+        return False
         
     def set_team(self, team:int):
         self._team = team
@@ -267,6 +280,13 @@ class Blaster():
         p.command = Command.team_change
         p.parameter = 0
         self._blaster_link.transmit_packet(p)
+        print(p)
+        for i in range(10):
+            sleep(.01)
+            response = self._blaster_link.read_packet()
+            if response and response.command == Command.ack:
+                return True
+        return False
         
     def set_game_mode(self, mode:int, team: int = 0):
         """
