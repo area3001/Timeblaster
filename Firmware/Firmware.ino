@@ -61,8 +61,13 @@ void loop()
   {
     if (can_shoot)
     {
-      damageShot();
-      Animations::shoot(activeTeam());
+      if (healing_mode){
+        healingShot();
+        Animations::shoot(activeTeam());
+      } else {
+        damageShot();
+        Animations::shoot(activeTeam());
+      }
     } else{
       Animations::error();
     }
@@ -151,7 +156,7 @@ void setTriggerAction(DataPacket packet){
   Serial.println("Received eCommandSetTriggerAction");
     stealth_mode = packet.parameter & 8;
     single_shot_mode = packet.parameter & 4;
-    bool heal = packet.parameter & 2;
+    healing_mode = packet.parameter & 2;
     bool disable = packet.parameter & 1;
 
     can_shoot=true;
@@ -194,6 +199,7 @@ void handle_being_shot(DataPacket packet){
     Data.readBadge(); //clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
     Animations::clear();
     zombie_team = packet.team;
+    healing_mode = false; //no such thing as healing zombies
     if (packet.team == activeTeam(true)) zombie_team = 0;
     Animations::team_switch(activeTeam());
     break;  

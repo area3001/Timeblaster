@@ -76,7 +76,7 @@ class DataPacket():
     
     @property
     def team_str(self) -> str:
-        return team.lookup(self.team)
+        return Team.lookup(self.team)
     
     # TRIGGER
     @property
@@ -102,7 +102,7 @@ class DataPacket():
     
     @property
     def command_str(self) -> str:
-        return command.lookup(self.command)
+        return Command.lookup(self.command)
     
     # PARAMETER
     @property
@@ -151,7 +151,7 @@ class DataPacket():
         return calc_crc
         
     
-    def __repr__(self): return(f"{self.team}, {self.trigger=}, {self.command}, {self.parameter=}, {self.crc=}, {self.calculate_crc()=}")
+    def __repr__(self): return(f"{self.team_str}, {self.trigger=}, {self.command_str}, {self.parameter=}, {self.crc=}, {self.calculate_crc()=}")
 
 
 class Reader():
@@ -243,7 +243,7 @@ class Blaster():
         
     def set_trigger_action(self, stealth=False, single_shot=False, healing=False, disable=False):
         p = DataPacket(0)
-        p.team = team.none
+        p.team = Team.none
         p.trigger = False
         p.command = Command.trigger_action
         
@@ -293,7 +293,7 @@ class Blaster():
     def settings(self, mute:bool=False, brightness:int=7):
         ...
         
-    def get_ir_shot(self):
+    def forward_ir_shot(self):
         ...
         #auto forward to blaster
         
