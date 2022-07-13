@@ -6,6 +6,20 @@
 
 namespace Animations
 {
+  enum AnimationNames: uint8_t {
+    eAnimationBlasterStart = 1,
+    eAnimationError = 2,
+    eAnimationCrash = 3,
+    eAnimationFireball = 4,
+    eAnimationOneUp = 5,
+    eAnimationCoin = 6,
+    eAnimationVoice = 7,
+    eAnimationWolfWhistle = 8,
+    eAnimationChatter = 9,
+    
+    eAnimationBlinkTeamLed = 15,
+  };
+
   uint32_t _teamToColor(uint8_t team, uint8_t level)
   {
     uint32_t color = 0;

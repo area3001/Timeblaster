@@ -56,6 +56,7 @@ class Animation(Enum):
     coin = 6
     voice = 7
     wolfWhistle = 8
+    chatter = 9
     
     blink_team_led = 15
 
@@ -355,6 +356,12 @@ class Blaster():
         p.command = Command.animation
         p.parameter = animation
         self._blaster_link.transmit_packet(p)
+        for i in range(10):
+            sleep(.01)
+            response = self._blaster_link.read_packet()
+            if response:
+                return response
+        return False
         
     def start_chatter(self):
         ...

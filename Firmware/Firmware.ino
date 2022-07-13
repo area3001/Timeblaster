@@ -39,11 +39,6 @@ void setup()
   blinkIfNoTeamSelector();
   Animations::setup();
 
-  Animations::chatter();
-  while(true){
-    if(triggerPressed())  Animations::chatter();
-  }
-
   if (triggerPressed())
   {
     Animations::mute();
@@ -54,7 +49,7 @@ void setup()
   }
   Animations::blaster_start();
 
-  delay(1000);
+  delay(500);
   blasterReady();
   Serial.println("Blaster Ready");
 }
@@ -126,11 +121,51 @@ void handle_badge_packet(DataPacket packet)
   case eCommandShoot:
     return handle_damage_received(packet);
     break;
+  case eCommandPlayAnimation:
+    handle_play_animation(packet);
+    break;
   default:
     return;
   }
   delay(4);
   blasterReady();
+}
+
+void handle_play_animation(DataPacket packet) {
+  switch (packet.parameter){
+    case Animations::eAnimationBlasterStart:
+      Animations::blaster_start();
+      break;
+    case Animations::eAnimationError:
+          Animations::error();
+      break;
+    case Animations::eAnimationCrash:
+      Animations::crash(7);
+      break;
+    case Animations::eAnimationFireball:
+      Animations::fireball();
+      break;
+    case Animations::eAnimationOneUp:
+      Animations::one_up();
+      break;
+    case Animations::eAnimationCoin:
+      Animations::coin();
+      break;
+    case Animations::eAnimationVoice:
+      Animations::voice();
+      break;
+    case Animations::eAnimationWolfWhistle:
+      Animations::wolfWhistle();
+      break;
+    case Animations::eAnimationChatter:
+      Animations::chatter();
+      break;    
+    case Animations::eAnimationBlinkTeamLed:
+      Animations::blink_team_led();
+      break;
+  }
+  Animations::set_team_status(activeTeam(),can_shoot);
+
 }
 
 void handle_ir_packet(DataPacket packet)
