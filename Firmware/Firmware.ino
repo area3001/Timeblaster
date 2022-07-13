@@ -7,7 +7,8 @@
 #define B_TEAM_PIN 8
 #define TRIGGER_PIN 3
 
-enum GameMode: uint8_t{
+enum GameMode : uint8_t
+{
   eGMTimeout = 0,
   eGMZombie = 1,
   eGMSuddenDeath = 2
@@ -16,15 +17,15 @@ enum GameMode: uint8_t{
 /* Blaster state variables */
 // if false the trigger is disabled. Set by the badge (trigger field)
 bool can_shoot = true;
-uint8_t ir_channel = 0b0000;   //default channel
+uint8_t ir_channel = 0b0000; // default channel
 bool healing_mode = false;
 bool stealth_mode = false;
 bool single_shot_mode = false;
 uint8_t game_mode = eGMTimeout;
 
 uint8_t last_active_team = -1;
-uint8_t badge_team = 0;   //the team set by the badge (over rules the blaster if != 0)
-uint8_t zombie_team = 0;  //zombie team overrules all other team settings but can be reset to 0 if the badge sets or resets the team. todo
+uint8_t badge_team = 0;  // the team set by the badge (over rules the blaster if != 0)
+uint8_t zombie_team = 0; // zombie team overrules all other team settings but can be reset to 0 if the badge sets or resets the team. todo
 
 bool muted = false;
 bool animated = true;
@@ -35,7 +36,7 @@ void setup()
   setupButtons();
   Serial.begin(115200);
   Data.init();
-  blinkIfNoTeamSelector(); 
+  blinkIfNoTeamSelector();
   Animations::setup();
 
   if (triggerPressed())
@@ -55,55 +56,52 @@ void setup()
 
 void loop()
 {
-  if (teamChanged()) Animations::team_switch(activeTeam(), can_shoot);
+  if (teamChanged())
+    Animations::team_switch(activeTeam(), can_shoot);
 
   if (triggerPressed())
   {
     if (can_shoot)
     {
-      if (healing_mode){
+      if (healing_mode)
+      {
         healingShot();
         Animations::shoot(activeTeam());
-      } else {
+      }
+      else
+      {
         damageShot();
         Animations::shoot(activeTeam());
       }
-    } else{
+    }
+    else
+    {
       Animations::error();
     }
-    if(single_shot_mode){
-      single_shot_mode =false;
-      can_shoot=false;
+    if (single_shot_mode)
+    {
+      single_shot_mode = false;
+      can_shoot = false;
       Animations::set_team_status(activeTeam(), can_shoot);
     }
     Animations::stealth(false);
   }
 
-  auto badge_packet = Data.readBadge();
-  handle_badge_packet(badge_packet);
- 
+  handle_badge_packet(Data.readBadge());
+  handle_ir_packet(Data.readIr());
 
-  auto ir_packet = Data.readIr();
-
-  if (ir_packet.command == eCommandShoot && 
-        ir_packet.parameter == ir_channel && 
-        ir_packet.trigger_state == 1 &&
-        ir_packet.team != activeTeam()){
-          Animations::stealth(false);
-          handle_being_shot(ir_packet);         
-        }
-
-  //bug: changing teams after healer fixed blaster causes new infection; disable team change
-  //bug: should not be able to change team when in zombie mode
-  if (game_mode == eGMZombie && activeTeam(true) != activeTeam(false)){
+  // bug: changing teams after healer fixed blaster causes new infection; disable team change
+  // bug: should not be able to change team when in zombie mode
+  if (game_mode == eGMZombie && activeTeam(true) != activeTeam(false))
+  {
     Animations::FlickerTeam(activeTeam(), activeTeam(true));
   }
-  
 }
 
 void handle_badge_packet(DataPacket packet)
 {
-  if (packet.command == 0) return;
+  if (packet.command == 0)
+    return;
   Serial.println("Received message from badge");
 
   switch (packet.command)
@@ -120,105 +118,144 @@ void handle_badge_packet(DataPacket packet)
   case eCommandTeamChange:
     setTeamColor(packet);
     break;
+  case eCommandShoot:
+    return handle_damage_received(packet);
+    break;
   default:
     return;
   }
   delay(4);
-  blasterReady();  
+  blasterReady();
 }
 
-void setGameMode(DataPacket packet){
-Serial.print("Received eCommandSetGameMode M:");
-    Serial.print(packet.parameter);
-    Serial.print(" T:");
-    Serial.println(packet.team);
-    if (packet.parameter ==  eGMTimeout){
-      game_mode = packet.parameter;
-      can_shoot = true;
-      healing_mode = false;
-      single_shot_mode = false;
-      zombie_team = 0;
-      badge_team = packet.team;
-    }
-    else if (packet.parameter ==  eGMZombie){
-       game_mode = packet.parameter;
-       can_shoot = true;
-       healing_mode = false;
-       single_shot_mode = false;
-       zombie_team = 0;
-       badge_team = packet.team;
-    }
-    else if (packet.parameter ==  eGMSuddenDeath){
-       game_mode = packet.parameter;
-       can_shoot = true;
-       healing_mode = false;
-       single_shot_mode = false;
-       zombie_team = 0;
-       badge_team = packet.team;
-    }
+void handle_ir_packet(DataPacket packet)
+{
+  if (packet.command == 0)
+    return;
+  Serial.println("Received message from IR");
+  switch (packet.command)
+  {
+  case eCommandShoot:
+    handle_damage_received(packet);
+    break;
+  case eCommandHeal:
+    handle_healing_received(packet);
+    break;
+  default:
+    return;
+  }
 }
 
-void setTeamColor(DataPacket packet){
+void handle_damage_received(DataPacket packet)
+{
+  if (packet.parameter == ir_channel && packet.trigger_state == 1 && packet.team != activeTeam())
+  {
+    Animations::stealth(false);
+    // send data to badge
+    packet.trigger_state = 0; // we are not fireing
+    Data.transmit(packet, eBadge);
+    Serial.println(packet.raw);
+
+    switch (game_mode)
+    {
+    case eGMTimeout:
+      // action here depends on game mode
+      Animations::crash(packet.team);
+      Data.readIr();    // clear buffer
+      Data.readBadge(); // clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
+      Animations::clear();
+      Animations::team_switch(activeTeam(), can_shoot);
+      break;
+    case eGMZombie:
+      // action here depends on game mode
+      Animations::crash(packet.team);
+      Data.readIr();    // clear buffer
+      Data.readBadge(); // clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
+      Animations::clear();
+      zombie_team = packet.team;
+      healing_mode = false; // no such thing as healing zombies
+      if (packet.team == activeTeam(true))
+        zombie_team = 0;
+      Animations::team_switch(activeTeam(), can_shoot);
+      break;
+    default:
+      break;
+    }
+  }
+}
+
+void handle_healing_received(DataPacket packet) {}
+
+void setGameMode(DataPacket packet)
+{
+  Serial.print("Received eCommandSetGameMode M:");
+  Serial.print(packet.parameter);
+  Serial.print(" T:");
+  Serial.println(packet.team);
+  if (packet.parameter == eGMTimeout)
+  {
+    game_mode = packet.parameter;
+    can_shoot = true;
+    healing_mode = false;
+    single_shot_mode = false;
+    zombie_team = 0;
+    badge_team = packet.team;
+  }
+  else if (packet.parameter == eGMZombie)
+  {
+    game_mode = packet.parameter;
+    can_shoot = true;
+    healing_mode = false;
+    single_shot_mode = false;
+    zombie_team = 0;
+    badge_team = packet.team;
+  }
+  else if (packet.parameter == eGMSuddenDeath)
+  {
+    game_mode = packet.parameter;
+    can_shoot = true;
+    healing_mode = false;
+    single_shot_mode = false;
+    zombie_team = 0;
+    badge_team = packet.team;
+  }
+}
+
+void setTeamColor(DataPacket packet)
+{
   Serial.println("Received eCommandTeamChange");
   badge_team = packet.team;
 }
 
-void setTriggerAction(DataPacket packet){
+void setTriggerAction(DataPacket packet)
+{
   Serial.println("Received eCommandSetTriggerAction");
-    stealth_mode = packet.parameter & 8;
-    single_shot_mode = packet.parameter & 4;
-    healing_mode = packet.parameter & 2;
-    can_shoot = !packet.parameter & 1;
+  stealth_mode = packet.parameter & 8;
+  single_shot_mode = packet.parameter & 4;
+  healing_mode = packet.parameter & 2;
+  can_shoot = !packet.parameter & 1;
 
-    Animations::stealth(stealth_mode);
-    Animations::set_team_status(activeTeam(), can_shoot);
+  Animations::stealth(stealth_mode);
+  Animations::set_team_status(activeTeam(), can_shoot);
 }
 
-void setChannel(DataPacket packet){
+void setChannel(DataPacket packet)
+{
   Serial.println("Received eCommandSetChannel");
   ir_channel = packet.parameter;
 }
 
 uint8_t activeTeam(bool ignore_zombie_team)
 {
-  if (zombie_team && ! ignore_zombie_team) return zombie_team;
-  if (badge_team) return badge_team;
-  auto hardwareTeam=getHardwareTeam();
-  if (hardwareTeam==0) return last_active_team;
+  if (zombie_team && !ignore_zombie_team)
+    return zombie_team;
+  if (badge_team)
+    return badge_team;
+  auto hardwareTeam = getHardwareTeam();
+  if (hardwareTeam == 0)
+    return last_active_team;
 }
-uint8_t activeTeam() {return activeTeam(false);}
-
-
-void handle_being_shot(DataPacket packet){
-  //send data to badge
-  packet.trigger_state = 0; // we are not fireing
-  Data.transmit(packet, eBadge);
-
-  switch (game_mode)
-  {
-  case eGMTimeout:
-    // action here depends on game mode
-    Animations::crash(packet.team);
-    Data.readIr(); //clear buffer
-    Data.readBadge(); //clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
-    Animations::clear();
-    Animations::team_switch(activeTeam(), can_shoot);
-    break;
-  case eGMZombie:
-    // action here depends on game mode
-    Animations::crash(packet.team);
-    Data.readIr(); //clear buffer
-    Data.readBadge(); //clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
-    Animations::clear();
-    zombie_team = packet.team;
-    healing_mode = false; //no such thing as healing zombies
-    if (packet.team == activeTeam(true)) zombie_team = 0;
-    Animations::team_switch(activeTeam(), can_shoot);
-    break;  
-  default:
-    break;
-  }
-}
+uint8_t activeTeam() { return activeTeam(false); }
 
 void healingShot()
 {
@@ -229,7 +266,6 @@ void healingShot()
   d.parameter = ir_channel;
 
   Data.transmit(d, eAllDevices);
-
 }
 
 void damageShot()
@@ -268,7 +304,7 @@ bool triggerPressed()
 
 bool teamChanged()
 {
-  if(last_active_team != activeTeam())
+  if (last_active_team != activeTeam())
   {
     last_active_team = activeTeam();
     return true;

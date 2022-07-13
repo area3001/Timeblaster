@@ -281,6 +281,9 @@ DataPacket _data::calculateCRC(DataPacket packet)
 
 void _data::transmit(DataPacket packet, DeviceType device)
 {
+  //Fixed delay to give the badge time to switch to receive mode
+  if (device & eBadge) delay(4);
+
   //Serial.println("TRANSMITTING PACKET");
   // 1) Disable Receiving for each device
   disableReceive(device);
