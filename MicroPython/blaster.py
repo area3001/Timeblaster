@@ -48,12 +48,17 @@ class GameMode(Enum):
     sudden_death = 2
     
 class Animation(Enum):
-    shoot = 1
-    boot = 2
-    r2d2 = 3
-    crash = 4
-    coin = 5
-    level_up = 6
+    blaster_start = 1
+    error = 2
+    crash = 3
+    fireball = 4
+    one_up = 5
+    coin = 6
+    voice = 7
+    wolfWhistle = 8
+    
+    blink_team_led = 15
+
 
 class DataPacket():
     def __init__(self, raw = 0):
@@ -273,6 +278,9 @@ class Blaster():
         return False
         
     def set_team(self, team:int):
+        """
+        Sets and locks the blaster team
+        """
         self._team = team
         p = DataPacket(0)
         p.team = self._team
@@ -280,7 +288,6 @@ class Blaster():
         p.command = Command.team_change
         p.parameter = 0
         self._blaster_link.transmit_packet(p)
-        print(p)
         for i in range(10):
             sleep(.01)
             response = self._blaster_link.read_packet()
@@ -300,12 +307,54 @@ class Blaster():
         p.command = Command.game_mode
         p.parameter = mode
         self._blaster_link.transmit_packet(p)
-        sleep(.1)
-        response = self._blaster_link.read_packet()
-        return response
+        for i in range(10):
+            sleep(.01)
+            response = self._blaster_link.read_packet()
+            if response and response.command == Command.ack:
+                return True
+        return False
+        
+    def got_hit(self, team: int):
+        """
+        Test function: pretend that the blaster got hit by team
+        """
+        p = DataPacket(0)
+        p.team = team
+        p.trigger = True
+        p.command = Command.shoot
+        p.parameter = 0
+        self._blaster_link.transmit_packet(p)
+        for i in range(10):
+            sleep(.01)
+            response = self._blaster_link.read_packet()
+            if response:
+                return response
+        return False
+        
+    def got_healed(self, team: int):
+        """
+        Test function: pretend that the blaster got healing by team
+        """
+        p = DataPacket(0)
+        p.team = team
+        p.trigger = True
+        p.command = Command.heal
+        p.parameter = 0
+        self._blaster_link.transmit_packet(p)
+        for i in range(10):
+            sleep(.01)
+            response = self._blaster_link.read_packet()
+            if response:
+                return response
+        return False
         
     def play_animation(self, animation:int):
-        ...
+        p = DataPacket(0)
+        p.team = Team.none
+        p.trigger = False
+        p.command = Command.animation
+        p.parameter = animation
+        self._blaster_link.transmit_packet(p)
         
     def start_chatter(self):
         ...
@@ -314,8 +363,11 @@ class Blaster():
         ...
         
     def forward_ir_shot(self):
-        ...
-        #auto forward to blaster
+        p = self._ir_link.read_packet()
+        if not p: return
+        if not p.calculate_crc() == p.crc: return
+        if not p.command in[Comamnd.heal, Command.shoot]: return
+        self._blaster_link.transmit_packet(p)
         
     def get_blaster_shot(self):
         ...

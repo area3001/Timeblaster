@@ -39,6 +39,11 @@ void setup()
   blinkIfNoTeamSelector();
   Animations::setup();
 
+  Animations::chatter();
+  while(true){
+    if(triggerPressed())  Animations::chatter();
+  }
+
   if (triggerPressed())
   {
     Animations::mute();
