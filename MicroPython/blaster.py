@@ -364,7 +364,18 @@ class Blaster():
         return False
         
     def start_chatter(self):
-        ...
+        p = DataPacket(0)
+        p.team = Team.none
+        p.trigger = False
+        p.command = Command.chatter
+        p.parameter = 9
+        self._blaster_link.transmit_packet(p)
+        for i in range(10):
+            sleep(.01)
+            response = self._blaster_link.read_packet()
+            if response and response.command == Command.ack:
+                return True
+        return False
         
     def settings(self, mute:bool=False, brightness:int=7):
         ...
