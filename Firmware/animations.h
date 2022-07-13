@@ -230,7 +230,7 @@ namespace Animations
 
   void phrase1()
   {
-
+    Leds.setDiskColor(1, 0x00FF0000);
     int k = random(1000, 2000);
     for (int i = 0; i <= random(100, 2000); i++)
     {
@@ -238,18 +238,20 @@ namespace Animations
       Buzzer.playFrequency(k + (-i * 2));
       delay(random(.9, 2));
     }
-
+    Leds.setDiskColor(2, 0x00000000);
+    Leds.setDiskColor(1, 0x00FF0000);
     for (int i = 0; i <= random(100, 1000); i++)
     {
 
       Buzzer.playFrequency(k + (i * 10));
       delay(random(.9, 2));
     }
+    Leds.setDiskColor(2, 0x00000000);
   }
 
   void phrase2()
   {
-
+    Leds.setDiskColor(1, 0x0000FF00);
     int k = random(1000, 2000);
     for (int i = 0; i <= random(100, 2000); i++)
     {
@@ -257,13 +259,15 @@ namespace Animations
       Buzzer.playFrequency(k + (i * 2));
       delay(random(.9, 2));
     }
-
+    Leds.setDiskColor(1, 0x00000000);
+    Leds.setDiskColor(1, 0x0000FF00);
     for (int i = 0; i <= random(100, 1000); i++)
     {
 
       Buzzer.playFrequency(k + (-i * 10));
       delay(random(.9, 2));
     }
+    Leds.setDiskColor(2, 0x00000000);
   }
 
   void chatter()
@@ -300,6 +304,7 @@ namespace Animations
       phrase2();
       break;
     }
+    Leds.setDiskColor(2, 0x000000FF);
     for (int i = 0; i <= random(3, 9); i++)
     {
 
@@ -308,6 +313,7 @@ namespace Animations
       Buzzer.playFrequency(0);
       delay(random(0, 30));
     }
+    Leds.setDiskColor(2, 0x00000000);
     Buzzer.playFrequency(0);
   }
 

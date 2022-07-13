@@ -25,7 +25,9 @@ uint8_t game_mode = eGMTimeout;
 
 uint8_t last_active_team = -1;
 uint8_t badge_team = 0;  // the team set by the badge (over rules the blaster if != 0)
-uint8_t zombie_team = 0; // zombie team overrules all other team settings but can be reset to 0 if the badge sets or resets the team. todo
+uint8_t zombie_team = 0;
+
+uint8_t chatter_limit = 10;
 
 bool muted = false;
 bool animated = true;
@@ -36,6 +38,7 @@ void setup()
   setupButtons();
   Serial.begin(115200);
   Data.init();
+  randomSeed(analogRead(A4));
   blinkIfNoTeamSelector();
   Animations::setup();
 
@@ -124,11 +127,31 @@ void handle_badge_packet(DataPacket packet)
   case eCommandPlayAnimation:
     handle_play_animation(packet);
     break;
+  case eCommandChatter:
+    blasterReady();
+    handle_play_chatter(packet);
+    return;
   default:
     return;
   }
-  delay(4);
+  delay(4); //this can now go away I think
   blasterReady();
+}
+
+void handle_play_chatter(DataPacket packet){
+  if (packet.parameter <= 0) return;
+  if (packet.parameter >= chatter_limit) return;
+  //chatter_limit = packet.parameter;
+  delay(random(500,1000));
+  if (random(30) == 0) Animations::wolfWhistle();
+  else Animations::chatter();
+  packet.parameter--;
+  if (packet.parameter > 0){
+    delay(random(250,500));
+    Data.transmit(packet, eInfrared);
+  }
+  Animations::set_team_status(activeTeam(),can_shoot);
+
 }
 
 void handle_play_animation(DataPacket packet) {
@@ -180,6 +203,10 @@ void handle_ir_packet(DataPacket packet)
     break;
   case eCommandHeal:
     handle_healing_received(packet);
+    break;
+  case eCommandChatter:
+    blasterReady();
+    handle_play_chatter(packet);
     break;
   default:
     return;
@@ -273,7 +300,7 @@ void setTriggerAction(DataPacket packet)
   stealth_mode = packet.parameter & 8;
   single_shot_mode = packet.parameter & 4;
   healing_mode = packet.parameter & 2;
-  can_shoot = !packet.parameter & 1;
+  can_shoot = !(packet.parameter & 1);
 
   Animations::stealth(stealth_mode);
   Animations::set_team_status(activeTeam(), can_shoot);

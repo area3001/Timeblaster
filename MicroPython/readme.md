@@ -43,3 +43,15 @@ blaster.set_trigger_action(stealth=True|False, single_shot=True|False, healing=T
 blaster.set_team(Team.rex)
 #team can be rex, giggle, buz, yellow, magenta, azure and white
 ```
+
+5) Set Game Mode.
+
+6) got hit
+
+7) got healed
+
+8) forward ir packet
+
+9) play animation
+
+10) start chatter
