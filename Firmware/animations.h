@@ -97,14 +97,7 @@ namespace Animations
   {
     Leds.clear();
 
-    uint32_t color = 0;
-    // todo: allow for other colors
-    if (team & 0b001)
-      color |= 0x00FF0000;
-    if (team & 0b010)
-      color |= 0x0000FF00;
-    if (team & 0b100)
-      color |= 0x000000FF;
+    uint32_t color = _teamToColor(team, 255);
 
     Leds.setDiskColor(1, color);
 
@@ -371,14 +364,7 @@ namespace Animations
   void shoot(uint8_t team)
   {
     int mod = team * 2;
-    uint32_t color;
-
-    if (team == 0b001)
-      color = 0x00FF0000;
-    if (team == 0b010)
-      color = 0x0000FF00;
-    if (team == 0b100)
-      color = 0x000000FF;
+    uint32_t color = _teamToColor(team, 255);
 
     for (int i = 0; i < 2 * mod; i++)
     {
