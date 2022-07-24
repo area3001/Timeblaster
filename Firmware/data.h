@@ -76,7 +76,7 @@ class DataReader
 {
 private:
   volatile uint32_t refTime;
-  volatile bool oldState;
+  volatile bool oldState = 1;
   volatile uint16_t rawData;
   volatile uint8_t bitsRead;
   volatile bool dataReady;
