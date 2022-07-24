@@ -344,13 +344,15 @@ void _data::transmit_ISR()
   {
     if (pulse_pointer % 2 == 1) // would & 0b1 be faster?
     {
-      DDRB &= ~B00000010;
+      if (transmit_ir)
+        DDRB &= ~B00000010;
       if (transmit_badge)
         digitalWrite(BADGELINK_PIN, LOW);
     }
     else
     {
-      DDRB |= B00000010;
+      if (transmit_ir)
+        DDRB |= B00000010;
       if (transmit_badge)
         digitalWrite(BADGELINK_PIN, HIGH);
     }

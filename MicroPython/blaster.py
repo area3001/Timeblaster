@@ -164,10 +164,16 @@ class Reader():
     def __init__(self, pin:int, can_transmit:bool = False) -> None:
         self._can_transmit = can_transmit
         self._ack = False
+        self._messages = []
         self._pin_nr = pin
-        self._reset()
         self._pin = Pin(self._pin_nr, Pin.IN, Pin.PULL_UP)
         self.start()
+    
+    def ack_state(self):
+        if self._ack:
+            self._ack = False
+            return True
+        return False
     
     def _reset(self) -> None:
         self._raw = 0
@@ -178,15 +184,7 @@ class Reader():
         t = ticks_us()
         delta = t - self._ref_time
         self._ref_time = t
-        if self._bits_read == 16:
-            packet = DataPacket(self._raw)
-            if packet.calculate_crc() != packet.crc:
-                self._reset
-                return
-            #update ACK flag if ACL
-            #push to queue if other message (keep queue < 10 long)
-            return #todo: verify CRC and reset if requried
-        if self._bits_read > 16: self._reset()
+        
         if delta > (12600 * 0.8) and delta < (12600 / 0.8):
             self._reset()
         elif delta > (2100 * 0.8) and delta < (2100 / 0.8):
@@ -197,6 +195,22 @@ class Reader():
             self._bits_read += 1
         else:
             self._reset()
+            
+        if self._bits_read == 16:
+            packet = DataPacket(self._raw)
+            if packet.calculate_crc() != packet.crc:
+                self._reset()
+                return
+            if packet.command == Command.ack:
+                self._reset()
+                self._ack = True
+            else:
+                self._messages.append(packet)
+                if len(self._messages) > 10:
+                    self._messages.pop(0)
+                
+            #push to queue if other message (keep queue < 10 long)
+            return #todo: verify CRC and reset if requried
             
     def start(self) -> None:
         """
@@ -378,13 +392,10 @@ class Blaster():
         p.trigger = False
         p.command = Command.chatter
         p.parameter = 9
+        self._blaster_link._ack = False
         self._blaster_link.transmit_packet(p)
-        for i in range(10):
-            sleep(.01)
-            response = self._blaster_link.read_packet()
-            if response and response.command == Command.ack:
-                return True
-        return False
+        sleep(.1)
+        return self._blaster_link.ack_state()
         
     def settings(self, mute:bool=False, brightness:int=7):
         ...

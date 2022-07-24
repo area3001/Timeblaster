@@ -361,6 +361,7 @@ void blasterReady()
   d.trigger_state = 0;
   d.command = eCommandBlasterAck;
   d.parameter = 0;
+  Serial.println("Sending ACK to badge.");
   Data.transmit(d, eBadge);
 }
 
