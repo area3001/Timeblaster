@@ -91,7 +91,7 @@ void _data::setup_ir_carrier()
 void _data::enableReceive(DeviceType device)
 {
   PCICR |= 0b00000100; // turn on port D
-  // PCMSK2 = 0; //causes bug when only disabeling and enabeling one device
+  
   if (device & eInfrared)
   {
     pinMode(IR_IN1_PIN, INPUT);
@@ -102,6 +102,7 @@ void _data::enableReceive(DeviceType device)
   {
     pinMode(BADGELINK_PIN, INPUT_PULLUP);
     PCMSK2 |= 0b10000000; // tun on pin 7
+    badge_reader.reset();
   }
 }
 
@@ -282,7 +283,7 @@ DataPacket _data::calculateCRC(DataPacket packet)
 void _data::transmit(DataPacket packet, DeviceType device)
 {
   //Fixed delay to give the badge time to switch to receive mode
-  if (device & eBadge) delay(4);
+  if (device & eBadge) delay(8);
 
   //Serial.println("TRANSMITTING PACKET");
   // 1) Disable Receiving for each device

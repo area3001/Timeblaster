@@ -163,6 +163,7 @@ class DataPacket():
 class Reader():
     def __init__(self, pin:int, can_transmit:bool = False) -> None:
         self._can_transmit = can_transmit
+        self._ack = False
         self._pin_nr = pin
         self._reset()
         self._pin = Pin(self._pin_nr, Pin.IN, Pin.PULL_UP)
@@ -177,7 +178,14 @@ class Reader():
         t = ticks_us()
         delta = t - self._ref_time
         self._ref_time = t
-        if self._bits_read == 16: return #todo: verify CRC and reset if requried
+        if self._bits_read == 16:
+            packet = DataPacket(self._raw)
+            if packet.calculate_crc() != packet.crc:
+                self._reset
+                return
+            #update ACK flag if ACL
+            #push to queue if other message (keep queue < 10 long)
+            return #todo: verify CRC and reset if requried
         if self._bits_read > 16: self._reset()
         if delta > (12600 * 0.8) and delta < (12600 / 0.8):
             self._reset()
@@ -232,6 +240,7 @@ class Reader():
         
 class Blaster():
     def __init__(self):
+        #set up 5hz timer, us timer to update receive flag and forware IR message
         self._blaster_link = Reader(04, can_transmit=True)
         self._ir_link = Reader(25)
         self._team = Team.none #None is not frozen
@@ -384,7 +393,7 @@ class Blaster():
         p = self._ir_link.read_packet()
         if not p: return
         if not p.calculate_crc() == p.crc: return
-        if not p.command in[Comamnd.heal, Command.shoot]: return
+        if not p.command in[Command.heal, Command.shoot]: return
         self._blaster_link.transmit_packet(p)
         
     def get_blaster_shot(self):
@@ -393,15 +402,9 @@ class Blaster():
     def log(self):
         while(True):
             if p := self._blaster_link.read_packet():
-                if p.calculate_crc() == p.crc:
-                    print("BLASTER:", p)
-                else:
-                    print("BLASTER: CRC Failed")
+                print("BLASTER:", p)
             if p := self._ir_link.read_packet():
-                if p.calculate_crc() == p.crc:
-                    print("IR:", p)
-                else:
-                    print("IR: CRC Failed")
+                print("IR:", p)
         
 blaster = Blaster()
         
