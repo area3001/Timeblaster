@@ -211,10 +211,8 @@ class Reader():
                 self._messages.append(packet)
                 self._reset()
                 if len(self._messages) > 10:
-                    self._messages.pop(0)
-                
-            #push to queue if other message (keep queue < 10 long)
-            return #todo: verify CRC and reset if requried
+                    self._messages.pop(0)        
+            return
             
     def start(self) -> None:
         """
@@ -376,11 +374,6 @@ class Blaster():
         self._blaster_link.transmit_packet(p)
         sleep(.1)
         return self._blaster_link.ack_state()
-        
-        #TODO
-        # input buffer
-        # retransmit after timeout
-        # implement settings and receive shot
         
     def settings(self, mute:bool=False, brightness:int=7):
         ...
