@@ -110,21 +110,30 @@ void handle_badge_packet(DataPacket packet)
   switch (packet.command)
   {
   case eCommandSetChannel:
+    blasterReady();
     setChannel(packet);
     break;
   case eCommandSetTriggerAction:
+    blasterReady();
     setTriggerAction(packet);
     break;
   case eCommandSetGameMode:
+    blasterReady();
     setGameMode(packet);
     break;
   case eCommandTeamChange:
+    blasterReady();
     setTeamColor(packet);
     break;
   case eCommandShoot:
-    return handle_damage_received(packet);
+    blasterReady();
+    handle_damage_received(packet);
     break;
+  case eCommandHeal:
+    blasterReady();
+    handle_healing_received(packet);
   case eCommandPlayAnimation:
+    blasterReady();
     handle_play_animation(packet);
     break;
   case eCommandChatter:
@@ -134,8 +143,6 @@ void handle_badge_packet(DataPacket packet)
   default:
     return;
   }
-  delay(4); //this can now go away I think
-  blasterReady();
 }
 
 void handle_play_chatter(DataPacket packet){

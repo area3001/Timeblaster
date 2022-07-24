@@ -171,9 +171,12 @@ class Reader():
     
     def ack_state(self):
         if self._ack:
-            self._ack = False
+            self.clear_ack()
             return True
         return False
+    
+    def clear_ack(self):
+        self._ack = False
     
     def _reset(self) -> None:
         self._raw = 0
@@ -206,6 +209,7 @@ class Reader():
                 self._ack = True
             else:
                 self._messages.append(packet)
+                self._reset()
                 if len(self._messages) > 10:
                     self._messages.pop(0)
                 
@@ -225,11 +229,8 @@ class Reader():
             self._pin.irq(handler=None)
         
     def read_packet(self) -> Optional[DataPacket]:
-        if self._bits_read == 16:
-            packet = DataPacket(self._raw)
-            self._reset()
-            return packet
-        return None
+        if len(self._messages) > 0:
+            return self._messages.pop(0)
     
     def transmit_packet(self, packet: DataPacket) -> None:
         if not self._can_transmit: return
@@ -246,6 +247,7 @@ class Reader():
             else:
                 pulse_train.extend([210*1,210*1])
         pulse_train.extend([210,210]) #stop
+        self.clear_ack()
         link.write_pulses(pulse_train,1)
         while not link.wait_done():
             ...
@@ -254,7 +256,6 @@ class Reader():
         
 class Blaster():
     def __init__(self):
-        #set up 5hz timer, us timer to update receive flag and forware IR message
         self._blaster_link = Reader(04, can_transmit=True)
         self._ir_link = Reader(25)
         self._team = Team.none #None is not frozen
@@ -271,12 +272,9 @@ class Blaster():
         p.command = Command.channel
         p.parameter = channel_id
         self._blaster_link.transmit_packet(p)
-        for i in range(10):
-            sleep(.01)
-            response = self._blaster_link.read_packet()
-            if response and response.command == Command.ack:
-                return True
-        return False
+        
+        sleep(.1)
+        return self._blaster_link.ack_state()
         
     def set_trigger_action(self, stealth=False, single_shot=False, healing=False, disable=False):
         """
@@ -293,13 +291,10 @@ class Blaster():
         if single_shot: param += 4
         if stealth: param += 8
         p.parameter = param
+        
         self._blaster_link.transmit_packet(p)
-        for i in range(10):
-            sleep(.01)
-            response = self._blaster_link.read_packet()
-            if response and response.command == Command.ack:
-                return True
-        return False
+        sleep(.1)
+        return self._blaster_link.ack_state()
         
     def set_team(self, team:int):
         """
@@ -312,12 +307,9 @@ class Blaster():
         p.command = Command.team_change
         p.parameter = 0
         self._blaster_link.transmit_packet(p)
-        for i in range(10):
-            sleep(.01)
-            response = self._blaster_link.read_packet()
-            if response and response.command == Command.ack:
-                return True
-        return False
+        
+        sleep(.1)
+        return self._blaster_link.ack_state()
         
     def set_game_mode(self, mode:int, team: int = 0):
         """
@@ -330,13 +322,10 @@ class Blaster():
         p.trigger = False
         p.command = Command.game_mode
         p.parameter = mode
+        
         self._blaster_link.transmit_packet(p)
-        for i in range(10):
-            sleep(.01)
-            response = self._blaster_link.read_packet()
-            if response and response.command == Command.ack:
-                return True
-        return False
+        sleep(.1)
+        return self._blaster_link.ack_state()
         
     def got_hit(self, team: int):
         """
@@ -347,13 +336,10 @@ class Blaster():
         p.trigger = True
         p.command = Command.shoot
         p.parameter = 0
+        
         self._blaster_link.transmit_packet(p)
-        for i in range(10):
-            sleep(.01)
-            response = self._blaster_link.read_packet()
-            if response:
-                return response
-        return False
+        sleep(.1)
+        return self._blaster_link.ack_state()
         
     def got_healed(self, team: int):
         """
@@ -364,13 +350,10 @@ class Blaster():
         p.trigger = True
         p.command = Command.heal
         p.parameter = 0
+        
         self._blaster_link.transmit_packet(p)
-        for i in range(10):
-            sleep(.01)
-            response = self._blaster_link.read_packet()
-            if response:
-                return response
-        return False
+        sleep(.1)
+        return self._blaster_link.ack_state()
         
     def play_animation(self, animation:int):
         p = DataPacket(0)
@@ -378,13 +361,10 @@ class Blaster():
         p.trigger = False
         p.command = Command.animation
         p.parameter = animation
+        
         self._blaster_link.transmit_packet(p)
-        for i in range(10):
-            sleep(.01)
-            response = self._blaster_link.read_packet()
-            if response:
-                return response
-        return False
+        sleep(.1)
+        return self._blaster_link.ack_state()
         
     def start_chatter(self):
         p = DataPacket(0)
@@ -392,10 +372,15 @@ class Blaster():
         p.trigger = False
         p.command = Command.chatter
         p.parameter = 9
-        self._blaster_link._ack = False
+        
         self._blaster_link.transmit_packet(p)
         sleep(.1)
         return self._blaster_link.ack_state()
+        
+        #TODO
+        # input buffer
+        # retransmit after timeout
+        # implement settings and receive shot
         
     def settings(self, mute:bool=False, brightness:int=7):
         ...
@@ -403,12 +388,14 @@ class Blaster():
     def forward_ir_shot(self):
         p = self._ir_link.read_packet()
         if not p: return
-        if not p.calculate_crc() == p.crc: return
         if not p.command in[Command.heal, Command.shoot]: return
         self._blaster_link.transmit_packet(p)
         
     def get_blaster_shot(self):
-        ...
+        p = self._blaster_link.read_packet()
+        if not p: return
+        if not p.command in[Command.heal, Command.shoot]: return
+        return p
         
     def log(self):
         while(True):
