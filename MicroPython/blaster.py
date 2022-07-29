@@ -1,6 +1,7 @@
 from machine import Pin
-from time import ticks_us, sleep, ticks_diff
+from time import ticks_us, sleep, ticks_diff, time
 import esp32
+from micropython import schedule
 
 class Enum():
     """
@@ -188,31 +189,34 @@ class Reader():
         delta = ticks_diff(t,self._ref_time)
         self._ref_time = t
         
-        if delta > (12600 * 0.8) and delta < (12600 / 0.8):
-            self._reset()
-        elif delta > (2100 * 0.8) and delta < (2100 / 0.8):
+        #if delta > 10080 and delta < 15750: #12600 us +/- 20%
+        #    self._reset()
+        #el
+        if delta > 1680 and delta < 2625: #2100 µs +/- 20%
             self._raw = (1 << 15) | (self._raw >> 1)
             self._bits_read += 1
-        elif delta > (1050 * 0.8) and delta < (1050 / 0.8):
+        elif delta > 840 and delta < 1313: #1050 µs +/- 20%
             self._raw = self._raw >> 1
             self._bits_read += 1
         else:
             self._reset()
             
         if self._bits_read == 16:
-            packet = DataPacket(self._raw)
-            if packet.calculate_crc() != packet.crc:
-                self._reset()
-                return
-            if packet.command == Command.ack:
-                self._reset()
-                self._ack = True
-            else:
-                self._messages.append(packet)
-                self._reset()
-                if len(self._messages) > 10:
-                    self._messages.pop(0)        
+            schedule(self.schedule_enqueue, self._raw)
+            self._reset()     
+            
+    def schedule_enqueue(self, raw):
+        packet = DataPacket(raw)
+        if packet.calculate_crc() != packet.crc:
+            self._reset()
             return
+        if packet.command == Command.ack:
+            self._reset()
+            self._ack = True
+        else:        
+            self._messages.append(packet)
+            if len(self._messages) > 10:
+                self._messages.pop(0)   
             
     def start(self) -> None:
         """
@@ -392,15 +396,16 @@ class Blaster():
         
     def log(self):
         last_p = None
+        ref_time = time()
         while(True):
             if p := self._blaster_link.read_packet():
                 if p.crc != p.calculate_crc():
                     print("BLASTER: BAD CRC")
                 else:
-                    print(f"BLASTER: {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}")
                     if last_p and (p.parameter - last_p + 16) % 16 != 1:
-                        print("BLASTER: Dropped packet?!")
+                        print(f"{time()-ref_time:5} BLASTER: Dropped packet?!")
                     last_p = p.parameter
+                    print(f"\rBLASTER: {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}", end="")
             if p := self._ir_link.read_packet():
                 if p.crc != p.calculate_crc():
                     print("IR: BAD CRC")

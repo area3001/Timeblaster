@@ -55,7 +55,7 @@ void setup()
   int team = 0;
   int param = 0;
   while (true){
-    delay(500);
+    delay(100);
     DataPacket d;
     d.team = (team++%8);
     d.trigger_state = 1;
