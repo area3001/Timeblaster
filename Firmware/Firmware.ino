@@ -52,8 +52,19 @@ void setup()
   }
   Animations::blaster_start();
 
-  delay(500);
-  blasterReady();
+  int team = 0;
+  int param = 0;
+  while (true){
+    delay(500);
+    DataPacket d;
+    d.team = (team++%8);
+    d.trigger_state = 1;
+    d.command = eCommandHeal;
+    d.parameter = (param++%16);
+
+    Data.transmit(d, eBadge);
+
+  }
   Serial.println("Blaster Ready");
 }
 

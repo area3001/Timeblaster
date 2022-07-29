@@ -1,5 +1,5 @@
 from machine import Pin
-from time import ticks_us, sleep
+from time import ticks_us, sleep, ticks_diff
 import esp32
 
 class Enum():
@@ -185,7 +185,7 @@ class Reader():
     
     def _handle_irq(self, e: Pin) -> None:
         t = ticks_us()
-        delta = t - self._ref_time
+        delta = ticks_diff(t,self._ref_time)
         self._ref_time = t
         
         if delta > (12600 * 0.8) and delta < (12600 / 0.8):
@@ -391,11 +391,23 @@ class Blaster():
         return p
         
     def log(self):
+        last_p = None
         while(True):
             if p := self._blaster_link.read_packet():
-                print("BLASTER:", p)
+                if p.crc != p.calculate_crc():
+                    print("BLASTER: BAD CRC")
+                else:
+                    print(f"BLASTER: {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}")
+                    if last_p and (p.parameter - last_p + 16) % 16 != 1:
+                        print("BLASTER: Dropped packet?!")
+                    last_p = p.parameter
             if p := self._ir_link.read_packet():
-                print("IR:", p)
+                if p.crc != p.calculate_crc():
+                    print("IR: BAD CRC")
+                else:
+                    print(f"IR:      {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}")
+            if self._blaster_link.ack_state():
+                print("BLASTER: ACK")
         
 blaster = Blaster()
         
