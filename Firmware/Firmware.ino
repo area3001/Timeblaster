@@ -62,7 +62,7 @@ void setup()
     d.command = eCommandHeal;
     d.parameter = (param++%16);
 
-    Data.transmit(d, eBadge);
+    Data.transmit(d, eAllDevices);
 
   }
   Serial.println("Blaster Ready");

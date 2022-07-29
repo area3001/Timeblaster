@@ -163,6 +163,10 @@ class DataPacket():
 
 class Reader():
     def __init__(self, pin:int, can_transmit:bool = False) -> None:
+        self._raw : int = 0
+        self._bits_read : int = 0
+        self._ref_time : int = 0
+        
         self._can_transmit = can_transmit
         self._ack = False
         self._messages = []
@@ -200,10 +204,8 @@ class Reader():
     def schedule_enqueue(self, raw):
         packet = DataPacket(raw)
         if packet.calculate_crc() != packet.crc:
-            self._reset()
             return
         if packet.command == Command.ack:
-            self._reset()
             self._ack = True
         else:        
             self._messages.append(packet)
@@ -388,8 +390,9 @@ class Blaster():
         if not p.command in[Command.heal, Command.shoot]: return
         return p
         
-    def log(self):
+    async def log(self):
         last_p = None
+        last_p_ir = None
         ref_time = time()
         while(True):
             if p := self._blaster_link.read_packet():
@@ -399,17 +402,40 @@ class Blaster():
                     if last_p and (p.parameter - last_p + 16) % 16 != 1:
                         print(f"{time()-ref_time:5} BLASTER: Dropped packet?!")
                     last_p = p.parameter
-                    print(f"\rBLASTER: {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}", end="")
+                    #print(f"\rBLASTER: {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}", end="")
+                    print(f"\r*",end="")
             if p := self._ir_link.read_packet():
                 if p.crc != p.calculate_crc():
                     print("IR: BAD CRC")
                 else:
-                    print(f"IR:      {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}")
+                    if last_p_ir and (p.parameter - last_p_ir + 16) % 16 != 1:
+                        print(f"{time()-ref_time:5} IR     : Dropped packet?!")
+                    last_p_ir = p.parameter
+                    #print(f"IR:      {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}")
+                    print(f"\r#",end="")
             if self._blaster_link.ack_state():
                 print("BLASTER: ACK")
+            await uasyncio.sleep_ms(5)
         
 blaster = Blaster()
         
 
+import uasyncio
+
+async def blink(led, period_ms):
+    while True:
+        led.on()
+        await uasyncio.sleep_ms(5)
+        led.off()
+        await uasyncio.sleep_ms(period_ms)
+
+async def main(led1, led2, led3):
+    uasyncio.create_task(blink(led1, 500))
+    uasyncio.create_task(blink(led2, 700))
+    uasyncio.create_task(blink(led3, 1300))
+    uasyncio.create_task(blaster.log())
+    await uasyncio.sleep_ms(60_000)
+
+uasyncio.run(main(Pin(27, Pin.OUT), Pin(14, Pin.OUT), Pin(13, Pin.OUT)))
 
 
