@@ -177,21 +177,13 @@ class Reader():
         return False
     
     def clear_ack(self):
-        self._ack = False
-    
-    def _reset(self) -> None:
-        self._raw = 0
-        self._bits_read = 0
-        self._ref_time = ticks_us()
+        self._ack = False      
     
     def _handle_irq(self, e: Pin) -> None:
         t = ticks_us()
         delta = ticks_diff(t,self._ref_time)
         self._ref_time = t
         
-        #if delta > 10080 and delta < 15750: #12600 us +/- 20%
-        #    self._reset()
-        #el
         if delta > 1680 and delta < 2625: #2100 µs +/- 20%
             self._raw = (1 << 15) | (self._raw >> 1)
             self._bits_read += 1
@@ -199,11 +191,11 @@ class Reader():
             self._raw = self._raw >> 1
             self._bits_read += 1
         else:
-            self._reset()
+            self._bits_read = 0
             
         if self._bits_read == 16:
             schedule(self.schedule_enqueue, self._raw)
-            self._reset()     
+            self._bits_read = 0    
             
     def schedule_enqueue(self, raw):
         packet = DataPacket(raw)
@@ -223,7 +215,9 @@ class Reader():
         Start listening on the defined hardware pin for data
         """
         self._pin.init(self._pin.IN, self._pin.PULL_UP)
-        self._reset()
+        self._ref_time = ticks_us()
+        self._raw = 0
+        self._bits_read = 0
         self._pin.irq(trigger=Pin.IRQ_RISING, handler=self._handle_irq)
         
     def stop(self) -> None:
