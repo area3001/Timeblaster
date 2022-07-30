@@ -2,6 +2,9 @@ from machine import Pin
 from time import ticks_us, sleep, ticks_diff
 from array import array
 import esp32
+import micropython
+
+micropython.alloc_emergency_exception_buf(100)
 
 class Enum():
     """
@@ -163,31 +166,85 @@ class DataPacket():
 
 class Reader():
     def __init__(self, pin:int, can_transmit:bool = False) -> None:
-        self._raw : int = 0
+        #Reader properties
         self._can_transmit : bool = can_transmit
-        self._ack : bool = False
-
-        self._irq_handler_ref = self._handle_irq
-        
+        self._pin_nr : int = pin
+        #Current incommint packet info
+        self._raw : int = 0
         self._ref_time : int = ticks_us()
-        
+        self._bits_read : int = 0 
+        #ringbuffer to store raw data before it's processed
         self._buffer_size : int = 10
         self._buffer = array('I', (0 for _ in range(self._buffer_size)))
         self._buffer_writer : int = 0
         self._buffer_reader : int = 0
-
-        self._pin_nr : int = pin
+        #Validated messages
+        self._messages : List[DataPacket] = []
+        #Counters
+        self._message_buffer_overflow = 0
+        self._crc_fails = 0
+        self._rx_count = 0
+        self._rx_buffer_overflow = 0
+        self._tx_count = 0
+        #True if an ack was received
+        self._ack : bool = False
+        #reference to the irq handler, see https://docs.micropython.org/en/latest/reference/isr_rules.html#creation-of-python-objects
+        self._irq_handler_ref = self._handle_irq
+        #pin object used by this instance
         self._pin : Pin = Pin(self._pin_nr, Pin.IN, Pin.PULL_UP)
-        
-        self.start()
+        #default state is listening for data
+        self._start_listening()
+  
+    def ack_state(self) -> bool:
+        """
+        Returns true if an ACK packet has been received.
+        Resets the ACK status 
+        """
+        self._process_buffer()
+        if self._ack:
+            self._ack = False
+            return True
+        return False
     
-    def ack_state(self):
-#         if self._ack:
-#             self.clear_ack()
-#             return True
-        return False    
-        
+    @property
+    def status(self):
+        return {"tx_count":self._tx_count,
+                "rx_count":self._rx_count,
+                "rx_crc_fails":self._crc_fails,
+                "rx_buffer_overflow":self._rx_buffer_overflow,
+                "rx_message_buffer_overflow":self._message_buffer_overflow}
     
+    def read_packet(self) -> Optional[DataPacket]:
+        """
+        Gets a DataPacket from the message buffer, None if the buffer is empty
+        """
+        self._process_buffer()        
+        if len(self._messages) > 0:
+            return self._messages.pop(0)
+  
+    def transmit_packet(self, packet: DataPacket) -> None:
+        if not self._can_transmit: return
+        self._tx_count += 1
+        self._stop_listening()
+        self._pin.init(self._pin.OUT)
+        link = esp32.RMT(0, pin=self._pin, idle_level=False, clock_div=200)
+        packet.crc = 0
+        packet.calculate_crc(apply=True)
+        #time.sleep(.1)
+        pulse_train = [210*16,210*8] #start
+        for i in range(16):
+            if packet.raw & (1 << i):
+                pulse_train.extend([210*1,210*3])
+            else:
+                pulse_train.extend([210*1,210*1])
+        pulse_train.extend([210,210]) #stop
+        self.ack_state() #clear the ack state
+        link.write_pulses(pulse_train,1)
+        while not link.wait_done():
+            ...
+        link.deinit()
+        self._start_listening()  
+  
     def _handle_irq(self, e: Pin) -> None:
         t = ticks_us()
         delta = ticks_diff(t,self._ref_time)
@@ -204,17 +261,44 @@ class Reader():
             
         #Push raw data to a ring buffer if we counted 16 bits.
         if self._bits_read == 16:
+            self._rx_count += 1
             self._buffer[self._buffer_writer] = self._raw
             self._buffer_writer += 1
             if self._buffer_writer >= self._buffer_size:
                 self._buffer_writer = 0
             if self._buffer_writer == self._buffer_reader: #push the reader forward if the buffer is full
+                self._rx_buffer_overflow += 1
                 self._buffer_reader += 1
                 if self._buffer_reader >= self._buffer_size:
-                    self._buffer_reader == 0
+                    self._buffer_reader = 0
             self._bits_read = 0     
+    
+
+    
+    def _process_buffer(self):
+        """
+        Process the raw buffer and store valid messages in the message buffer.
+        Also sets the ACK flag if an ack message was found
+        """
+        while self._buffer_reader != self._buffer_writer:
+            packet = DataPacket(self._buffer[self._buffer_reader])
+            self._buffer_reader += 1
+            if self._buffer_reader >= self._buffer_size:
+                self._buffer_reader = 0 
+            if packet.calculate_crc() == packet.crc:
+                if packet.command == Command.ack:
+                    self._ack = True
+                else:
+                    self._messages.append(packet)
+                    while len(self._messages) >= self._buffer_size:
+                        self._message_buffer_overflow += 1
+                        self._messages.pop(0)
+            else:
+                self._crc_fails += 1
+    
+        
             
-    def start(self) -> None:
+    def _start_listening(self) -> None:
         """
         Start listening on the defined hardware pin for data
         """
@@ -222,46 +306,17 @@ class Reader():
         self._pin.init(self._pin.IN, self._pin.PULL_UP)
         self._pin.irq(trigger=Pin.IRQ_RISING, handler=self._handle_irq)
         
-    def stop(self) -> None:
+    def _stop_listening(self) -> None:
         if self._pin:
             self._pin.irq(handler=None)
         
-    def read_packet(self) -> Optional[DataPacket]:
-        if self._buffer_writer == self._buffer_reader:
-            return
-        packet = DataPacket(self._buffer[self._buffer_reader])
-        self._buffer_reader += 1
-        if self._buffer_reader >= self._buffer_size:
-                self._buffer_reader = 0 
-        if packet.calculate_crc() != packet.crc:
-            return
-        return packet
+   
     
-    def transmit_packet(self, packet: DataPacket) -> None:
-        if not self._can_transmit: return
-        self.stop()
-        self._pin.init(self._pin.OUT)
-        link = esp32.RMT(0, pin=self._pin, idle_level=False, clock_div=200)
-        packet.crc = 0
-        packet.calculate_crc(apply=True)
-        #time.sleep(.1)
-        pulse_train = [210*16,210*8] #start
-        for i in range(16):
-            if packet.raw & (1 << i):
-                pulse_train.extend([210*1,210*3])
-            else:
-                pulse_train.extend([210*1,210*1])
-        pulse_train.extend([210,210]) #stop
-        self.clear_ack()
-        link.write_pulses(pulse_train,1)
-        while not link.wait_done():
-            ...
-        link.deinit()
-        self.start()
+
         
 class Blaster():
     def __init__(self):
-        self._blaster_link = Reader(04, can_transmit=True)
+        self._blaster_link = Reader(4, can_transmit=True)
         self._ir_link = Reader(25)
         self._team = Team.none #None is not frozen
     
@@ -402,26 +457,11 @@ class Blaster():
             if p := self._blaster_link.read_packet():
                 print("BLASTER:", p)
             if p := self._ir_link.read_packet():
-                print("IR:", p)
-        
-    def test(self):
-        last_p = None
-        last_p_ir = None
-        while(True):
-            if p := self._blaster_link.read_packet():
-                 if last_p and (p.parameter - last_p + 16) % 16 != 1:
-                     print(f"BLASTER: Dropped packet?!")
-                 last_p = p.parameter
-                 print(f"*",end="")
-            if p := self._ir_link.read_packet():
-                if last_p_ir and (p.parameter - last_p_ir + 16) % 16 != 1:
-                    print(f"IR     : Dropped packet?!")
-                last_p_ir = p.parameter
-                print(f"#",end="")
-            sleep(.1)            
+                print("IR:", p)                 
         
 blaster = Blaster()
-blaster.test()
+
+
         
 
 
