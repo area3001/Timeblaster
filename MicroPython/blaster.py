@@ -1,5 +1,6 @@
 from machine import Pin
-from time import ticks_us, sleep
+from time import ticks_us, sleep, ticks_diff
+from array import array
 import esp32
 
 class Enum():
@@ -162,64 +163,63 @@ class DataPacket():
 
 class Reader():
     def __init__(self, pin:int, can_transmit:bool = False) -> None:
-        self._can_transmit = can_transmit
-        self._ack = False
-        self._messages = []
-        self._pin_nr = pin
-        self._pin = Pin(self._pin_nr, Pin.IN, Pin.PULL_UP)
+        self._raw : int = 0
+        self._can_transmit : bool = can_transmit
+        self._ack : bool = False
+
+        self._irq_handler_ref = self._handle_irq
+        
+        self._ref_time : int = ticks_us()
+        
+        self._buffer_size : int = 10
+        self._buffer = array('I', (0 for _ in range(self._buffer_size)))
+        self._buffer_writer : int = 0
+        self._buffer_reader : int = 0
+
+        self._pin_nr : int = pin
+        self._pin : Pin = Pin(self._pin_nr, Pin.IN, Pin.PULL_UP)
+        
         self.start()
     
     def ack_state(self):
-        if self._ack:
-            self.clear_ack()
-            return True
-        return False
-    
-    def clear_ack(self):
-        self._ack = False
-    
-    def _reset(self) -> None:
-        self._raw = 0
-        self._bits_read = 0
-        self._ref_time = ticks_us()
+#         if self._ack:
+#             self.clear_ack()
+#             return True
+        return False    
+        
     
     def _handle_irq(self, e: Pin) -> None:
         t = ticks_us()
-        delta = t - self._ref_time
+        delta = ticks_diff(t,self._ref_time)
         self._ref_time = t
         
-        if delta > (12600 * 0.8) and delta < (12600 / 0.8):
-            self._reset()
-        elif delta > (2100 * 0.8) and delta < (2100 / 0.8):
+        if delta > 1680 and delta < 2625: #2100 µs +/- 20%
             self._raw = (1 << 15) | (self._raw >> 1)
             self._bits_read += 1
-        elif delta > (1050 * 0.8) and delta < (1050 / 0.8):
+        elif delta > 840 and delta < 1313: #1050 µs +/- 20%
             self._raw = self._raw >> 1
             self._bits_read += 1
         else:
-            self._reset()
+            self._bits_read = 0
             
+        #Push raw data to a ring buffer if we counted 16 bits.
         if self._bits_read == 16:
-            packet = DataPacket(self._raw)
-            if packet.calculate_crc() != packet.crc:
-                self._reset()
-                return
-            if packet.command == Command.ack:
-                self._reset()
-                self._ack = True
-            else:
-                self._messages.append(packet)
-                self._reset()
-                if len(self._messages) > 10:
-                    self._messages.pop(0)        
-            return
+            self._buffer[self._buffer_writer] = self._raw
+            self._buffer_writer += 1
+            if self._buffer_writer >= self._buffer_size:
+                self._buffer_writer = 0
+            if self._buffer_writer == self._buffer_reader: #push the reader forward if the buffer is full
+                self._buffer_reader += 1
+                if self._buffer_reader >= self._buffer_size:
+                    self._buffer_reader == 0
+            self._bits_read = 0     
             
     def start(self) -> None:
         """
         Start listening on the defined hardware pin for data
         """
+        self._bits_read = 0 
         self._pin.init(self._pin.IN, self._pin.PULL_UP)
-        self._reset()
         self._pin.irq(trigger=Pin.IRQ_RISING, handler=self._handle_irq)
         
     def stop(self) -> None:
@@ -227,8 +227,15 @@ class Reader():
             self._pin.irq(handler=None)
         
     def read_packet(self) -> Optional[DataPacket]:
-        if len(self._messages) > 0:
-            return self._messages.pop(0)
+        if self._buffer_writer == self._buffer_reader:
+            return
+        packet = DataPacket(self._buffer[self._buffer_reader])
+        self._buffer_reader += 1
+        if self._buffer_reader >= self._buffer_size:
+                self._buffer_reader = 0 
+        if packet.calculate_crc() != packet.crc:
+            return
+        return packet
     
     def transmit_packet(self, packet: DataPacket) -> None:
         if not self._can_transmit: return
@@ -397,7 +404,24 @@ class Blaster():
             if p := self._ir_link.read_packet():
                 print("IR:", p)
         
+    def test(self):
+        last_p = None
+        last_p_ir = None
+        while(True):
+            if p := self._blaster_link.read_packet():
+                 if last_p and (p.parameter - last_p + 16) % 16 != 1:
+                     print(f"BLASTER: Dropped packet?!")
+                 last_p = p.parameter
+                 print(f"*",end="")
+            if p := self._ir_link.read_packet():
+                if last_p_ir and (p.parameter - last_p_ir + 16) % 16 != 1:
+                    print(f"IR     : Dropped packet?!")
+                last_p_ir = p.parameter
+                print(f"#",end="")
+            sleep(.1)            
+        
 blaster = Blaster()
+blaster.test()
         
 
 
