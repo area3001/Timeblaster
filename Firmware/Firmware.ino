@@ -2,6 +2,8 @@
 #include "animations.h"
 #include "data.h"
 
+#define VERSION 20220730
+
 #define R_TEAM_PIN A5
 #define G_TEAM_PIN 4
 #define B_TEAM_PIN 8
@@ -36,25 +38,17 @@ uint8_t brightness = 0b11;
 void setup()
 {
   setupButtons();
-  Serial.begin(115200);
-  Data.init();
-  randomSeed(analogRead(A4));
+  setupCommunication();
+  setupRandomSeed();
+  setupAnimations();
   blinkIfNoTeamSelector();
-  Animations::setup();
-
-  if (triggerPressed())
-  {
-    Animations::mute();
-  }
-  while (triggerPressed())
-  {
-    Animations::blink_team_led();
-  }
+  testMutedBoot();
+ 
   Animations::blaster_start();
 
+  Serial.println(" * Blaster Ready\n\n");
   delay(500);
-  blasterReady();
-  Serial.println("Blaster Ready");
+  sendACK();  
 }
 
 void loop()
@@ -110,38 +104,37 @@ void handle_badge_packet(DataPacket packet)
   switch (packet.command)
   {
   case eCommandSetChannel:
-    blasterReady();
+    sendACK();
     setChannel(packet);
     break;
   case eCommandSetTriggerAction:
-    blasterReady();
+    sendACK();
     setTriggerAction(packet);
     break;
   case eCommandSetGameMode:
-    blasterReady();
+    sendACK();
     setGameMode(packet);
     break;
   case eCommandTeamChange:
-    blasterReady();
+    sendACK();
     setTeamColor(packet);
     break;
   case eCommandShoot:
-    blasterReady();
+    sendACK();
     handle_damage_received(packet);
     break;
   case eCommandHeal:
-    blasterReady();
+    sendACK();
     handle_healing_received(packet);
+    break;
   case eCommandPlayAnimation:
-    blasterReady();
+    sendACK();
     handle_play_animation(packet);
     break;
   case eCommandChatter:
-    blasterReady();
+    sendACK();
     handle_play_chatter(packet);
-    return;
-  default:
-    return;
+    break;
   }
 }
 
@@ -212,7 +205,7 @@ void handle_ir_packet(DataPacket packet)
     handle_healing_received(packet);
     break;
   case eCommandChatter:
-    blasterReady();
+    sendACK();
     handle_play_chatter(packet);
     break;
   default:
@@ -353,21 +346,95 @@ void damageShot()
   Data.transmit(d, eAllDevices);
 }
 
-void setupButtons()
-{
+/*
+  Configure all switch inputs as input_pullup
+*/
+void setupButtons(){
   pinMode(TRIGGER_PIN, INPUT_PULLUP);
   pinMode(R_TEAM_PIN, INPUT_PULLUP);
   pinMode(G_TEAM_PIN, INPUT_PULLUP);
   pinMode(B_TEAM_PIN, INPUT_PULLUP);
 }
 
-void blasterReady()
+void setupCommunication(){
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println("___ _ _  _ ____    ___  _    ____ ____ ___ ____ ____");
+  Serial.println(" |  | |\\/| |___    |__] |    |__| [__   |  |___ |__/ ");
+  Serial.println(" |  | |  | |___    |__] |___ |  | ___]  |  |___ |  \\______\\/_");
+  Serial.println("                                                          /\\");
+  Serial.println();                                                
+  Serial.println(" * Serial Ready.");
+  Serial.print(" * Firmware version: ");
+  Serial.println(VERSION);
+  Data.init();
+  Serial.println(" * Communication Ready.");
+}
+
+void setupRandomSeed(){
+  auto analogValue = analogRead(A4);
+  randomSeed(analogValue);
+  Serial.print(" * Random seed: ");
+  Serial.println(analogValue);
+}
+
+void setupAnimations(){
+  Animations::setup();
+  Serial.println(" * Animations ready.");
+}
+
+/* This is to give a visual signal that the firmware is flashed successfully when bulk uploading.
+ * This has no use after flashing.
+ */
+void blinkIfNoTeamSelector()
+{
+  pinMode(R_TEAM_PIN, INPUT_PULLUP);
+  pinMode(G_TEAM_PIN, INPUT_PULLUP);
+  pinMode(B_TEAM_PIN, INPUT_PULLUP);
+  pinMode(A0, OUTPUT);
+  if (digitalRead(R_TEAM_PIN) && digitalRead(G_TEAM_PIN) && digitalRead(B_TEAM_PIN))  {
+    Serial.println(" * No team switch detected, entering Post Flash Mode");
+    while (digitalRead(R_TEAM_PIN) && digitalRead(G_TEAM_PIN) && digitalRead(B_TEAM_PIN))    {
+      digitalWrite(A0, HIGH);
+      delay(100);
+      digitalWrite(A0, LOW);
+      delay(500);
+    }
+    Serial.println(" * Exit Flash Test Mode");
+  } else{
+    Serial.println(" * Team switch detected");
+  }
+  pinMode(A0, INPUT);
+}
+
+void testMutedBoot(){
+  if (triggerPressed())  {
+    Serial.println(" * Trigger pressed, starting in muted mode.");
+    Animations::mute();
+    Serial.print(" * Waiting for trigger to be released ");
+    while (triggerPressed()) {
+      Animations::blink_team_led();
+      Serial.print(".");
+    }
+    Serial.println();
+  }
+}
+
+void sendACK()
+{
+  sendACK(false);
+}
+
+void sendACK(bool blasterReady)
 {
   DataPacket d;
   d.team = getHardwareTeam();
   d.trigger_state = 0;
   d.command = eCommandBlasterAck;
   d.parameter = 0;
+  if (blasterReady) {
+    d.parameter |= 1;
+  }
   Serial.println("Sending ACK to badge.");
   Data.transmit(d, eBadge);
 }
@@ -396,26 +463,3 @@ uint8_t getHardwareTeam()
   return r + g + b;
 }
 
-/* This is to give a visual signal that the firmware is flashed successfully when bulk uploading.
- * This has no use after flashing.
- */
-void blinkIfNoTeamSelector()
-{
-  pinMode(R_TEAM_PIN, INPUT_PULLUP);
-  pinMode(G_TEAM_PIN, INPUT_PULLUP);
-  pinMode(B_TEAM_PIN, INPUT_PULLUP);
-  pinMode(A0, OUTPUT);
-  if (digitalRead(R_TEAM_PIN) && digitalRead(G_TEAM_PIN) && digitalRead(B_TEAM_PIN))
-  {
-    Serial.println("Enter Flash Test Mode");
-    while (digitalRead(R_TEAM_PIN) && digitalRead(G_TEAM_PIN) && digitalRead(B_TEAM_PIN))
-    {
-      digitalWrite(A0, HIGH);
-      delay(100);
-      digitalWrite(A0, LOW);
-      delay(500);
-    }
-    Serial.println("Exit Flash Test Mode");
-  }
-  pinMode(A0, INPUT);
-}
