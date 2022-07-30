@@ -1,7 +1,6 @@
 from machine import Pin
-from time import ticks_us, sleep, ticks_diff, time
+from time import ticks_us, sleep
 import esp32
-from micropython import schedule
 
 class Enum():
     """
@@ -163,10 +162,6 @@ class DataPacket():
 
 class Reader():
     def __init__(self, pin:int, can_transmit:bool = False) -> None:
-        self._raw : int = 0
-        self._bits_read : int = 0
-        self._ref_time : int = 0
-        
         self._can_transmit = can_transmit
         self._ack = False
         self._messages = []
@@ -181,45 +176,50 @@ class Reader():
         return False
     
     def clear_ack(self):
-        self._ack = False      
+        self._ack = False
+    
+    def _reset(self) -> None:
+        self._raw = 0
+        self._bits_read = 0
+        self._ref_time = ticks_us()
     
     def _handle_irq(self, e: Pin) -> None:
         t = ticks_us()
-        delta = ticks_diff(t,self._ref_time)
+        delta = t - self._ref_time
         self._ref_time = t
         
-        if delta > 1680 and delta < 2625: #2100 µs +/- 20%
+        if delta > (12600 * 0.8) and delta < (12600 / 0.8):
+            self._reset()
+        elif delta > (2100 * 0.8) and delta < (2100 / 0.8):
             self._raw = (1 << 15) | (self._raw >> 1)
             self._bits_read += 1
-        elif delta > 840 and delta < 1313: #1050 µs +/- 20%
+        elif delta > (1050 * 0.8) and delta < (1050 / 0.8):
             self._raw = self._raw >> 1
             self._bits_read += 1
         else:
-            self._bits_read = 0
+            self._reset()
             
         if self._bits_read == 16:
-            schedule(self.schedule_enqueue, self._raw)
-            self._bits_read = 0    
-            
-    def schedule_enqueue(self, raw):
-        packet = DataPacket(raw)
-        if packet.calculate_crc() != packet.crc:
+            packet = DataPacket(self._raw)
+            if packet.calculate_crc() != packet.crc:
+                self._reset()
+                return
+            if packet.command == Command.ack:
+                self._reset()
+                self._ack = True
+            else:
+                self._messages.append(packet)
+                self._reset()
+                if len(self._messages) > 10:
+                    self._messages.pop(0)        
             return
-        if packet.command == Command.ack:
-            self._ack = True
-        else:        
-            self._messages.append(packet)
-            if len(self._messages) > 10:
-                self._messages.pop(0)   
             
     def start(self) -> None:
         """
         Start listening on the defined hardware pin for data
         """
         self._pin.init(self._pin.IN, self._pin.PULL_UP)
-        self._ref_time = ticks_us()
-        self._raw = 0
-        self._bits_read = 0
+        self._reset()
         self._pin.irq(trigger=Pin.IRQ_RISING, handler=self._handle_irq)
         
     def stop(self) -> None:
@@ -390,52 +390,15 @@ class Blaster():
         if not p.command in[Command.heal, Command.shoot]: return
         return p
         
-    async def log(self):
-        last_p = None
-        last_p_ir = None
-        ref_time = time()
+    def log(self):
         while(True):
             if p := self._blaster_link.read_packet():
-                if p.crc != p.calculate_crc():
-                    print("BLASTER: BAD CRC")
-                else:
-                    if last_p and (p.parameter - last_p + 16) % 16 != 1:
-                        print(f"{time()-ref_time:5} BLASTER: Dropped packet?!")
-                    last_p = p.parameter
-                    #print(f"\rBLASTER: {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}", end="")
-                    print(f"\r*",end="")
+                print("BLASTER:", p)
             if p := self._ir_link.read_packet():
-                if p.crc != p.calculate_crc():
-                    print("IR: BAD CRC")
-                else:
-                    if last_p_ir and (p.parameter - last_p_ir + 16) % 16 != 1:
-                        print(f"{time()-ref_time:5} IR     : Dropped packet?!")
-                    last_p_ir = p.parameter
-                    #print(f"IR:      {p.team_str:8} T:{p.trigger:1} C:{p.command_str:14} P:{p.parameter:2}")
-                    print(f"\r#",end="")
-            if self._blaster_link.ack_state():
-                print("BLASTER: ACK")
-            await uasyncio.sleep_ms(5)
+                print("IR:", p)
         
 blaster = Blaster()
         
 
-import uasyncio
-
-async def blink(led, period_ms):
-    while True:
-        led.on()
-        await uasyncio.sleep_ms(5)
-        led.off()
-        await uasyncio.sleep_ms(period_ms)
-
-async def main(led1, led2, led3):
-    uasyncio.create_task(blink(led1, 500))
-    uasyncio.create_task(blink(led2, 700))
-    uasyncio.create_task(blink(led3, 1300))
-    uasyncio.create_task(blaster.log())
-    await uasyncio.sleep_ms(60_000)
-
-uasyncio.run(main(Pin(27, Pin.OUT), Pin(14, Pin.OUT), Pin(13, Pin.OUT)))
 
 
