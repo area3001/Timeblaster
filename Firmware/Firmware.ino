@@ -28,6 +28,7 @@ uint8_t game_mode = eGMTimeout;
 uint8_t last_active_team = -1;
 uint8_t badge_team = 0;  // the team set by the badge (over rules the blaster if != 0)
 uint8_t zombie_team = 0;
+uint8_t hardware_team = 0;
 
 uint8_t chatter_limit = 10;
 
@@ -312,18 +313,6 @@ void setChannel(DataPacket packet)
   ir_channel = packet.parameter;
 }
 
-uint8_t activeTeam(bool ignore_zombie_team)
-{
-  if (zombie_team && !ignore_zombie_team)
-    return zombie_team;
-  if (badge_team)
-    return badge_team;
-  auto hardwareTeam = getHardwareTeam();
-  if (hardwareTeam == 0)
-    return last_active_team;
-}
-uint8_t activeTeam() { return activeTeam(false); }
-
 void healingShot()
 {
   DataPacket d;
@@ -388,6 +377,7 @@ void setupAnimations(){
  */
 void blinkIfNoTeamSelector()
 {
+  //Don't use gethardwareteam() here as it ignores team 0
   pinMode(R_TEAM_PIN, INPUT_PULLUP);
   pinMode(G_TEAM_PIN, INPUT_PULLUP);
   pinMode(B_TEAM_PIN, INPUT_PULLUP);
@@ -428,7 +418,7 @@ void sendACK()
 void sendACK(bool blasterReady)
 {
   DataPacket d;
-  d.team = getHardwareTeam();
+  d.team = 0;
   d.trigger_state = 0;
   d.command = eCommandBlasterAck;
   d.parameter = 0;
@@ -454,12 +444,37 @@ bool teamChanged()
   return false;
 }
 
-uint8_t getHardwareTeam()
-{
-  byte r = (1 - digitalRead(R_TEAM_PIN)) * 1;
-  byte g = (1 - digitalRead(G_TEAM_PIN)) * 2;
-  byte b = (1 - digitalRead(B_TEAM_PIN)) * 4;
+// Get the team from the hardware switch.
+uint8_t getHardwareTeam() {
+  uint8_t r = (1 - digitalRead(R_TEAM_PIN)) * 1;
+  uint8_t g = (1 - digitalRead(G_TEAM_PIN)) * 2;
+  uint8_t b = (1 - digitalRead(B_TEAM_PIN)) * 4;
 
-  return r + g + b;
+  uint8_t team = r + g + b;
+  if (team != hardware_team && team != 0){
+    hardware_team = team;
+    DataPacket d;
+    d.team = hardware_team;
+    d.trigger_state = 0;
+    d.command = eCommandTeamChange;
+    d.parameter = 0;
+    Serial.print("Sending Changed HW Team (=");
+    Serial.print(hardware_team);
+    Serial.println(") to badge.");
+    Data.transmit(d, eBadge);
+  }
+
+  return hardware_team;
 }
 
+uint8_t activeTeam(bool ignore_zombie_team)
+{
+  if (zombie_team && !ignore_zombie_team)
+    return zombie_team;
+  if (badge_team)
+    return badge_team;
+  auto hardwareTeam = getHardwareTeam();
+  if (hardwareTeam == 0)
+    return last_active_team;
+}
+uint8_t activeTeam() { return activeTeam(false); }

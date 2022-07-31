@@ -6,6 +6,7 @@ import micropython
 
 micropython.alloc_emergency_exception_buf(100)
 
+#region Enums
 class Enum():
     """
     Poor man's Enum
@@ -63,8 +64,9 @@ class Animation(Enum):
     chatter = 9
     
     blink_team_led = 15
+#endregion
 
-
+#region DataPacket
 class DataPacket():
     def __init__(self, raw = 0):
         self._raw = raw
@@ -139,7 +141,7 @@ class DataPacket():
         if apply is True then set the CRC in this packet.
         """
         crc = [0, 0, 0, 0]
-        # makes computing the checksum a litle bit faster
+        # makes computing the checksum a little bit faster
         d0 = (self._raw >> 0) & 1
         d1 = (self._raw >> 1) & 1
         d2 = (self._raw >> 2) & 1
@@ -162,18 +164,19 @@ class DataPacket():
         
     
     def __repr__(self): return(f"{self.team_str}, {self.trigger=}, {self.command_str}, {self.parameter=}, {self.crc=}, {self.calculate_crc()=}")
+#endregion
 
-
+#region Reader
 class Reader():
     def __init__(self, pin:int, can_transmit:bool = False) -> None:
         #Reader properties
         self._can_transmit : bool = can_transmit
         self._pin_nr : int = pin
-        #Current incommint packet info
+        #Current incoming packet info
         self._raw : int = 0
         self._ref_time : int = ticks_us()
         self._bits_read : int = 0 
-        #ringbuffer to store raw data before it's processed
+        #ring buffer to store raw data before it's processed
         self._buffer_size : int = 10
         self._buffer = array('I', (0 for _ in range(self._buffer_size)))
         self._buffer_writer : int = 0
@@ -188,6 +191,7 @@ class Reader():
         self._tx_count = 0
         #True if an ack was received
         self._ack : bool = False
+        self._hardware_team : Optional[int] = None
         #reference to the irq handler, see https://docs.micropython.org/en/latest/reference/isr_rules.html#creation-of-python-objects
         self._irq_handler_ref = self._handle_irq
         #pin object used by this instance
@@ -221,6 +225,14 @@ class Reader():
         self._process_buffer()        
         if len(self._messages) > 0:
             return self._messages.pop(0)
+
+    @property
+    def hardware_team(self) -> Optional[DataPacket]:
+        """
+        Gets a DataPacket from the message buffer, None if the buffer is empty
+        """
+        self._process_buffer()        
+        return self._hardware_team
   
     def transmit_packet(self, packet: DataPacket) -> None:
         if not self._can_transmit: return
@@ -288,6 +300,8 @@ class Reader():
             if packet.calculate_crc() == packet.crc:
                 if packet.command == Command.ack:
                     self._ack = True
+                elif packet.command == Command.team_change:
+                    self._hardware_team = packet.team
                 else:
                     self._messages.append(packet)
                     while len(self._messages) >= self._buffer_size:
@@ -309,17 +323,19 @@ class Reader():
     def _stop_listening(self) -> None:
         if self._pin:
             self._pin.irq(handler=None)
-        
-   
+#endregion        
     
-
-        
+#region Blaster        
 class Blaster():
     def __init__(self):
         self._blaster_link = Reader(4, can_transmit=True)
         self._ir_link = Reader(25)
         self._team = Team.none #None is not frozen
     
+    @property
+    def hardware_team(self):
+        return self._blaster_link.hardware_team
+
     def set_channel(self, channel_id:int):
         """
         Sets the IR channel (0..15).
@@ -458,7 +474,8 @@ class Blaster():
                 print("BLASTER:", p)
             if p := self._ir_link.read_packet():
                 print("IR:", p)                 
-        
+#endregion
+
 blaster = Blaster()
 
 
