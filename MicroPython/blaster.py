@@ -28,6 +28,7 @@ class Command(Enum):
     channel = 3
     trigger_action = 4
     game_mode = 5
+    hit_timeout = 6
     animation = 7
     team_change = 8
     chatter = 9
@@ -437,6 +438,18 @@ class Blaster():
         p.trigger = False
         p.command = Command.animation
         p.parameter = animation
+        
+        self._blaster_link.transmit_packet(p)
+        sleep(.1)
+        return self._blaster_link.ack_state()
+    
+    def set_hit_timeout(self, timeout:int):
+        if timeout > 15 or timeout < 0: return
+        p = DataPacket(0)
+        p.team = Team.none
+        p.trigger = False
+        p.command = Command.hit_timeout
+        p.parameter = timeout
         
         self._blaster_link.transmit_packet(p)
         sleep(.1)
