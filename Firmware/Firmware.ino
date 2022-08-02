@@ -2,7 +2,7 @@
 #include "animations.h"
 #include "data.h"
 
-#define VERSION 20220730
+#define VERSION 20220802
 
 #define R_TEAM_PIN A5
 #define G_TEAM_PIN 4
