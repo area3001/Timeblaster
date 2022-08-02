@@ -51,7 +51,7 @@ void setup()
   Serial.println(" * Blaster Ready\n\n");
   sendACK();
   delay(500);
-  sendACK(true);  
+  sendACK(true); //blaster is listening 
 }
 
 void loop()
@@ -110,46 +110,55 @@ void handle_badge_packet(DataPacket packet)
     sendACK();
     setChannel(packet);
     Serial.println("eCommandSetChannel");
+    sendACK(true);
     break;
   case eCommandSetTriggerAction:
     sendACK();
     setTriggerAction(packet);
     Serial.println("eCommandSetTriggerAction");
+    sendACK(true);
     break;
   case eCommandSetGameMode:
     sendACK();
     setGameMode(packet);
     Serial.println("eCommandSetGameMode");
+    sendACK(true);
     break;
   case eCommandTeamChange:
     sendACK();
     setTeamColor(packet);
     Serial.println("eCommandTeamChange");
+    sendACK(true);
     break;
   case eCommandShoot:
     sendACK();
     handle_damage_received(packet);
     Serial.println("eCommandShoot");
+    sendACK(true);
     break;
   case eCommandHeal:
     sendACK();
     handle_healing_received(packet);
     Serial.println("eCommandHeal");
+    sendACK(true);
     break;
   case eCommandPlayAnimation:
     sendACK();
     handle_play_animation(packet);
     Serial.println("eCommandPlayAnimation");
+    sendACK(true);
     break;
   case eCommandChatter:
     sendACK();
     handle_play_chatter(packet);
     Serial.println("eCommandChatter");
+    sendACK(true);
     break;
   case eCommandSetHitTimeout:
     sendACK();
     handle_set_hit_timeout(packet);
     Serial.println("eCommandSetHitTimeout");
+    sendACK(true);
     break;
   }
 }
@@ -229,6 +238,7 @@ void handle_ir_packet(DataPacket packet)
     sendACK();
     Serial.println("eCommandChatter");
     handle_play_chatter(packet);
+    sendACK(true);
     break;
   }
 }
