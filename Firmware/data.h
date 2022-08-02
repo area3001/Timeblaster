@@ -40,7 +40,7 @@ enum CommandType : uint8_t
   eCommandSetChannel = 3,
   eCommandSetTriggerAction = 4,
   eCommandSetGameMode = 5,
-  //eCommandGotHit = 6,
+  eCommandSetHitTimeout = 6,
   eCommandPlayAnimation = 7,
   eCommandTeamChange = 8,
   eCommandChatter = 9,

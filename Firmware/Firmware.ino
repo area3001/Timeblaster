@@ -49,8 +49,9 @@ void setup()
   Animations::blaster_start();
 
   Serial.println(" * Blaster Ready\n\n");
+  sendACK();
   delay(500);
-  sendACK();  
+  sendACK(true);  
 }
 
 void loop()
@@ -108,36 +109,53 @@ void handle_badge_packet(DataPacket packet)
   case eCommandSetChannel:
     sendACK();
     setChannel(packet);
+    Serial.println("eCommandSetChannel");
     break;
   case eCommandSetTriggerAction:
     sendACK();
     setTriggerAction(packet);
+    Serial.println("eCommandSetTriggerAction");
     break;
   case eCommandSetGameMode:
     sendACK();
     setGameMode(packet);
+    Serial.println("eCommandSetGameMode");
     break;
   case eCommandTeamChange:
     sendACK();
     setTeamColor(packet);
+    Serial.println("eCommandTeamChange");
     break;
   case eCommandShoot:
     sendACK();
     handle_damage_received(packet);
+    Serial.println("eCommandShoot");
     break;
   case eCommandHeal:
     sendACK();
     handle_healing_received(packet);
+    Serial.println("eCommandHeal");
     break;
   case eCommandPlayAnimation:
     sendACK();
     handle_play_animation(packet);
+    Serial.println("eCommandPlayAnimation");
     break;
   case eCommandChatter:
     sendACK();
     handle_play_chatter(packet);
+    Serial.println("eCommandChatter");
+    break;
+  case eCommandSetHitTimeout:
+    sendACK();
+    handle_set_hit_timeout(packet);
+    Serial.println("eCommandSetHitTimeout");
     break;
   }
+}
+
+void handle_set_hit_timeout(DataPacket packet){
+  hit_timeout = packet.parameter;
 }
 
 void handle_play_chatter(DataPacket packet){
@@ -153,7 +171,6 @@ void handle_play_chatter(DataPacket packet){
     Data.transmit(packet, eInfrared);
   }
   Animations::set_team_status(activeTeam(),can_shoot);
-
 }
 
 void handle_play_animation(DataPacket packet) {
@@ -201,17 +218,18 @@ void handle_ir_packet(DataPacket packet)
   switch (packet.command)
   {
   case eCommandShoot:
-    handle_damage_received(packet);
+    Serial.println("eCommandShoot");
+    handle_damage_received(packet);   
     break;
   case eCommandHeal:
+    Serial.println("eCommandHeal");
     handle_healing_received(packet);
     break;
   case eCommandChatter:
     sendACK();
+    Serial.println("eCommandChatter");
     handle_play_chatter(packet);
     break;
-  default:
-    return;
   }
 }
 
@@ -223,8 +241,6 @@ void handle_damage_received(DataPacket packet)
     // send data to badge
     packet.trigger_state = 0; // we are not fireing
     Data.transmit(packet, eBadge);
-    Serial.println(packet.raw);
-
     switch (game_mode)
     {
     case eGMTimeout:
@@ -246,8 +262,6 @@ void handle_damage_received(DataPacket packet)
       if (packet.team == activeTeam(true))
         zombie_team = 0;
       Animations::team_switch(activeTeam(), can_shoot);
-      break;
-    default:
       break;
     }
   }
