@@ -277,7 +277,11 @@ void handle_damage_received(DataPacket packet)
   }
 }
 
-void handle_healing_received(DataPacket packet) {}
+void handle_healing_received(DataPacket packet) {
+    packet.trigger_state = 0; // we are not fireing
+    Data.transmit(packet, eBadge);
+    zombie_team = 0;
+}
 
 void setGameMode(DataPacket packet)
 {
