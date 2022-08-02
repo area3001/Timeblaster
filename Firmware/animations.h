@@ -93,7 +93,7 @@ namespace Animations
     Buzzer.playFrequency(0);
   }
 
-  void crash(uint8_t team)
+  void crash(uint8_t team, uint8_t hit_timeout)
   {
     Leds.clear();
 
@@ -113,13 +113,13 @@ namespace Animations
     }
     Buzzer.playFrequency(0);
 
-    for (int i = 1; i < 5; i++)
+    for (int i = 1; i < hit_timeout*4; i++)
     {
-      delay(1000);
-      Leds.setPixelColor(i, 0);
+      delay(250);
+      Leds.setPixelColor(4-(i/(hit_timeout)), 0);
       Leds.update();
     }
-    delay(1000);
+    delay(100);
   }
 
   void voice()

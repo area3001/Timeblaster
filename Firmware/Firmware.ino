@@ -31,6 +31,7 @@ uint8_t zombie_team = 0;
 uint8_t hardware_team = 0;
 
 uint8_t chatter_limit = 10;
+uint8_t hit_timeout = 3;
 
 bool muted = false;
 bool animated = true;
@@ -164,7 +165,7 @@ void handle_play_animation(DataPacket packet) {
           Animations::error();
       break;
     case Animations::eAnimationCrash:
-      Animations::crash(7);
+      Animations::crash(7,5);
       break;
     case Animations::eAnimationFireball:
       Animations::fireball();
@@ -228,7 +229,7 @@ void handle_damage_received(DataPacket packet)
     {
     case eGMTimeout:
       // action here depends on game mode
-      Animations::crash(packet.team);
+      Animations::crash(packet.team, hit_timeout);
       Data.readIr();    // clear buffer
       Data.readBadge(); // clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
       Animations::clear();
@@ -236,7 +237,7 @@ void handle_damage_received(DataPacket packet)
       break;
     case eGMZombie:
       // action here depends on game mode
-      Animations::crash(packet.team);
+      Animations::crash(packet.team, hit_timeout);
       Data.readIr();    // clear buffer
       Data.readBadge(); // clear badge (in case the badge received the same packet) //todo: improve so that we only remove shoot commands
       Animations::clear();
