@@ -1,4 +1,3 @@
-#include "functions.h"
 #include "animations.h"
 #include "data.h"
 
@@ -25,10 +24,11 @@ bool stealth_mode = false;
 bool single_shot_mode = false;
 uint8_t game_mode = eGMTimeout;
 
-uint8_t last_active_team = -1;
+uint8_t last_active_team = 0;  // to detect team changes
+
 uint8_t badge_team = 0;  // the team set by the badge (over rules the blaster if != 0)
 uint8_t zombie_team = 0;
-uint8_t hardware_team = 0;
+uint8_t hardware_team = 0; // in case the hardware switch is in between values
 
 uint8_t chatter_limit = 10;
 uint8_t hit_timeout = 3;
@@ -56,8 +56,10 @@ void setup()
 
 void loop()
 {
-  if (teamChanged())
+  
+  if (teamChanged()){
     Animations::team_switch(activeTeam(), can_shoot);
+  }
 
   if (triggerPressed())
   {
@@ -90,11 +92,9 @@ void loop()
   handle_badge_packet(Data.readBadge());
   handle_ir_packet(Data.readIr());
 
-  // bug: changing teams after healer fixed blaster causes new infection; disable team change
-  // bug: should not be able to change team when in zombie mode
-  if (game_mode == eGMZombie && activeTeam(true) != activeTeam(false))
+  if (game_mode == eGMZombie && zombie_team > 0)
   {
-    Animations::FlickerTeam(activeTeam(), activeTeam(true));
+    Animations::FlickerTeam(zombie_team, hardware_team);
   }
 }
 
@@ -259,7 +259,7 @@ void handle_damage_received(DataPacket packet)
       Animations::clear();
       zombie_team = packet.team;
       healing_mode = false; // no such thing as healing zombies
-      if (packet.team == activeTeam(true))
+      if (packet.team == nonZombieTeam())
         zombie_team = 0;
       Animations::team_switch(activeTeam(), can_shoot);
       break;
@@ -461,6 +461,7 @@ bool teamChanged()
 
 // Get the team from the hardware switch.
 uint8_t getHardwareTeam() {
+  if (zombie_team) return hardware_team;
   uint8_t r = (1 - digitalRead(R_TEAM_PIN)) * 1;
   uint8_t g = (1 - digitalRead(G_TEAM_PIN)) * 2;
   uint8_t b = (1 - digitalRead(B_TEAM_PIN)) * 4;
@@ -482,14 +483,17 @@ uint8_t getHardwareTeam() {
   return hardware_team;
 }
 
-uint8_t activeTeam(bool ignore_zombie_team)
+uint8_t activeTeam() //The team you shoot as
 {
-  if (zombie_team && !ignore_zombie_team)
+  if (zombie_team > 0 && game_mode == eGMZombie)
     return zombie_team;
-  if (badge_team)
+  if (badge_team > 0)
     return badge_team;
-  auto hardwareTeam = getHardwareTeam();
-  if (hardwareTeam == 0)
-    return last_active_team;
+  return getHardwareTeam();
 }
-uint8_t activeTeam() { return activeTeam(false); }
+
+uint8_t nonZombieTeam(){
+  if (badge_team > 0)
+    return badge_team;
+  return getHardwareTeam();
+}
