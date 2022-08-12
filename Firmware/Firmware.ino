@@ -30,7 +30,7 @@ uint8_t badge_team = 0;  // the team set by the badge (over rules the blaster if
 uint8_t zombie_team = 0;
 uint8_t hardware_team = 0; // in case the hardware switch is in between values
 
-uint8_t chatter_limit = 10;
+uint8_t chatter_limit = 9;
 uint8_t hit_timeout = 3;
 
 bool muted = false;
@@ -46,56 +46,26 @@ void setup()
   blinkIfNoTeamSelector();
   testMutedBoot();
  
-  Animations::blaster_start();
-
+  Animations::chatter();
+  Animations::clear();
   Serial.println(" * Blaster Ready\n\n");
-  sendACK();
-  delay(500);
-  sendACK(true); //blaster is listening 
-}
+  }
 
 void loop()
 {
   
-  if (teamChanged()){
-    Animations::team_switch(activeTeam(), can_shoot);
-  }
-
   if (triggerPressed())
   {
-    if (can_shoot)
-    {
-      if (healing_mode)
-      {
-        healingShot();
-        Animations::shoot(activeTeam());
-      }
-      else
-      {
-        damageShot();
-        Animations::shoot(activeTeam());
-      }
-    }
-    else
-    {
-      Animations::error();
-    }
-    if (single_shot_mode)
-    {
-      single_shot_mode = false;
-      can_shoot = false;
-      Animations::set_team_status(activeTeam(), can_shoot);
-    }
-    Animations::stealth(false);
+     DataPacket d;
+     d.team = 1;
+     d.trigger_state = 1;
+     d.command = eCommandChatter;
+     d.parameter = 9;
+
+      Data.transmit(d, eInfrared);
+      Serial.println("boom");
   }
 
-  handle_badge_packet(Data.readBadge());
-  handle_ir_packet(Data.readIr());
-
-  if (game_mode == eGMZombie && zombie_team > 0)
-  {
-    Animations::FlickerTeam(zombie_team, hardware_team);
-  }
 }
 
 void handle_badge_packet(DataPacket packet)
