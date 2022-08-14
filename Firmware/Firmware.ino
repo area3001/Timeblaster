@@ -12,7 +12,8 @@ enum GameMode : uint8_t
 {
   eGMTimeout = 0,
   eGMZombie = 1,
-  eGMSuddenDeath = 2
+  eGMSuddenDeath = 2,
+  eGMChatterMaster = 3
 };
 
 /* Blaster state variables */
@@ -44,8 +45,10 @@ void setup()
   setupRandomSeed();
   setupAnimations();
   blinkIfNoTeamSelector();
-  testMutedBoot();
- 
+  modeSelection();
+
+
+//  Animations::mute();
   Animations::blaster_start();
 
   Serial.println(" * Blaster Ready\n\n");
@@ -56,7 +59,9 @@ void setup()
 
 void loop()
 {
-  
+  //dirty but works for now
+  if (game_mode == eGMChatterMaster) chatter_master_loop();
+
   if (teamChanged()){
     Animations::team_switch(activeTeam(), can_shoot);
   }
@@ -95,6 +100,25 @@ void loop()
   if (game_mode == eGMZombie && zombie_team > 0)
   {
     Animations::FlickerTeam(zombie_team, hardware_team);
+  }
+}
+
+void chatter_master_loop(){
+    Animations::chatter();
+  Animations::clear();
+
+  while (true){
+  if (triggerPressed())
+    {
+      DataPacket d;
+      d.team = 1;
+      d.trigger_state = 1;
+      d.command = eCommandChatter;
+      d.parameter = 9;
+
+        Data.transmit(d, eInfrared);
+        Serial.println("boom");
+    }
   }
 }
 
@@ -425,6 +449,37 @@ void blinkIfNoTeamSelector()
   }
   pinMode(A0, INPUT);
 }
+
+
+void modeSelection(){
+  if (triggerPressed())  {
+    Serial.println(" * Trigger pressed, starting in mode selection mode.");
+    switch (getHardwareTeam())
+    {
+    case 1:
+      Animations::mute();
+      break;
+    case 2:
+      game_mode = eGMZombie;
+      break;
+    case 4:
+      game_mode = eGMChatterMaster;
+      break;
+    
+    default:
+      break;
+    }
+
+
+    Serial.print(" * Waiting for trigger to be released ");
+    while (triggerPressed()) {
+      Animations::blink_team_led();
+      Serial.print(".");
+    }
+    Serial.println();
+  }
+}
+
 
 void testMutedBoot(){
   if (triggerPressed())  {
