@@ -1,0 +1,20 @@
+Better low power 
+  rev 03 has 7ma in low power mode (with usb-serial chip)
+  - test w/o this chip
+  - check which components are most power hungry
+
+move header with unused pins up so it does not get in the way of the receiver.
+
+protect the IR SEND LED from damage.
+ - extra PCB?
+ - using smd led if angle exists and not to expensive and hand solderable..
+
+remove IR2 led cirquit?
+
+Bigger + or so on the neopixel rings 
+
+option to replace the cr2032 with rechargable batt + protection
+
+add small LED to unused pin
+ - for debugging, programming status, blink when sending,general io, check if powered..
+
