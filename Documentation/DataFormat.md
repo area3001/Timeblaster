@@ -102,7 +102,16 @@ Sets the same mode of the blaster.
 Tell the blaster to start one of the built in animation. Animations don't affect the state of the game.
 
 ### List of Animations
-*todo*
+* eAnimationBlasterStart = 1,
+* eAnimationError = 2,
+* eAnimationCrash = 3,
+* eAnimationFireball = 4,
+* eAnimationOneUp = 5,
+* eAnimationCoin = 6,
+* eAnimationVoice = 7,
+* eAnimationWolfWhistle = 8,
+* eAnimationChatter = 9,
+* eAnimationBlinkTeamLed = 15,
 
 
 ## Team Change
@@ -134,7 +143,7 @@ Every time a blaster retransmits a message is decreases the time to live field. 
 
 ## Settings
 **Command**: 0xB  
-**Parameter**: See details 
+**Parameter**: See details  
 **Trigger**: Not used   
 **Team**: Not used
 
@@ -146,12 +155,15 @@ Sets some settings on the blaster
 
 ## Ack
 **Command**: 0xF   
-**Parameter**: Not Used  
+**Parameter**: See details 
 **Trigger**: Not used   
 **Team**: Not used
 
 The blaster should respond with an Ack on all valid messages send by the badge.
 This should happen in less than 100ms after receiving the original message.
 If a Ack is not received within 100ms the original packed is seen as a lost packet.
+
+Parameter 0: Normal Ack (needed changes have been correctly received)
+Parameter 1: Blaster Ready Ack (all needed changes have been processed)
 
 The blaster will also send an Ack message when powered on.

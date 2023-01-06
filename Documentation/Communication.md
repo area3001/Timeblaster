@@ -13,7 +13,7 @@ The implementation on the Time Blaster is compatible with the JVC protocol but h
  - The blaster does not use the repeat feature of the JVC IR protocol.
 
 
-# Timeings
+# Timings
 When sending or replying to a message it is important to wait aprox. 4ms before sending a message. This is to give the other device the time to switch back from sending to receiving.
 
 # Data 
