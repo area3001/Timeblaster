@@ -61,7 +61,7 @@ namespace Animations
 
   void blaster_start()
   {
-    byte colors[] = {128, 0, 0, 128, 0};
+    //byte colors[] = {128, 0, 0, 128, 0};
     for (byte w = 0; w < 200; w += 10)
     {
       for (int i = 0; i < 9; i++)
