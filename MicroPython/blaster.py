@@ -32,7 +32,7 @@ class Command(Enum):
     animation = 7
     team_change = 8
     chatter = 9
-    settings = 10
+    settings = 11
     ack = 15
     
 class Team(Enum):
