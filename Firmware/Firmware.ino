@@ -1,7 +1,7 @@
 #include "animations.h"
 #include "data.h"
 
-#define VERSION 20220802
+#define VERSION 20230106
 
 #define R_TEAM_PIN A5
 #define G_TEAM_PIN 4
@@ -34,9 +34,9 @@ uint8_t hardware_team = 0; // in case the hardware switch is in between values
 uint8_t chatter_limit = 10;
 uint8_t hit_timeout = 3;
 
-bool muted = false;
-bool animated = true;
-uint8_t brightness = 0b11;
+//bool muted = false;
+//bool animated = true;
+//uint8_t brightness = 0b11;
 
 void setup()
 {
@@ -104,20 +104,19 @@ void loop()
 }
 
 void chatter_master_loop(){
-    Animations::chatter();
+  Animations::chatter();
   Animations::clear();
 
   while (true){
-  if (triggerPressed())
-    {
+    if (triggerPressed()){
       DataPacket d;
-      d.team = 1;
+      d.team = eTeamRex;
       d.trigger_state = 1;
       d.command = eCommandChatter;
       d.parameter = 9;
 
-        Data.transmit(d, eInfrared);
-        Serial.println("boom");
+      Data.transmit(d, eInfrared);
+      Serial.println("boom");
     }
   }
 }
@@ -184,11 +183,35 @@ void handle_badge_packet(DataPacket packet)
     Serial.println("eCommandSetHitTimeout");
     sendACK(true);
     break;
+  case eCommandSetSettings:
+    sendACK();
+    handle_set_settings(packet);
+    Serial.println();
+    sendACK(true);
+    break;
+  default:
+    break;
   }
 }
 
 void handle_set_hit_timeout(DataPacket packet){
   hit_timeout = packet.parameter;
+}
+
+void handle_set_settings(DataPacket packet){
+  bool mute = packet.parameter & 0b0001;
+  if (mute) {
+    Animations::mute();
+  } else {
+    Animations::unmute();
+  }
+  uint8_t brightness = (packet.parameter & 0b1110) >> 1; // brightness 
+  uint8_t result = 0b00000000;
+  if (brightness & 0b100) result |= 0b11000000;
+  if (brightness & 0b010) result |= 0b00111000;
+  if (brightness & 0b001) result |= 0b00000111;
+  Leds.setBrightness(result);
+  Leds.update();
 }
 
 void handle_play_chatter(DataPacket packet){
@@ -263,6 +286,8 @@ void handle_ir_packet(DataPacket packet)
     Serial.println("eCommandChatter");
     handle_play_chatter(packet);
     sendACK(true);
+    break;
+  default:
     break;
   }
 }
@@ -369,7 +394,7 @@ void setChannel(DataPacket packet)
 void healingShot()
 {
   DataPacket d;
-  d.team = activeTeam();
+  d.team = TeamColor(activeTeam());
   d.trigger_state = 1;
   d.command = eCommandHeal;
   d.parameter = ir_channel;
@@ -380,7 +405,7 @@ void healingShot()
 void damageShot()
 {
   DataPacket d;
-  d.team = activeTeam();
+  d.team = TeamColor(activeTeam());
   d.trigger_state = 1;
   d.command = eCommandShoot;
   d.parameter = ir_channel;
@@ -480,7 +505,7 @@ void modeSelection(){
   }
 }
 
-
+/*
 void testMutedBoot(){
   if (triggerPressed())  {
     Serial.println(" * Trigger pressed, starting in muted mode.");
@@ -493,6 +518,7 @@ void testMutedBoot(){
     Serial.println();
   }
 }
+*/
 
 void sendACK()
 {
@@ -502,7 +528,7 @@ void sendACK()
 void sendACK(bool blasterReady)
 {
   DataPacket d;
-  d.team = 0;
+  d.team = eNoTeam;
   d.trigger_state = 0;
   d.command = eCommandBlasterAck;
   d.parameter = 0;
@@ -539,7 +565,7 @@ uint8_t getHardwareTeam() {
   if (team != hardware_team && team != 0){
     hardware_team = team;
     DataPacket d;
-    d.team = hardware_team;
+    d.team = TeamColor(hardware_team);
     d.trigger_state = 0;
     d.command = eCommandTeamChange;
     d.parameter = 0;

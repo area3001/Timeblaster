@@ -108,4 +108,8 @@ void _leds::stealth(bool status){
   } else   strip.setBrightness(255);
 }
 
+void _leds::setBrightness(uint8_t brightness){
+  strip.setBrightness(brightness);
+}
+
 _leds &Leds = Leds.getInstance();

@@ -21,6 +21,7 @@ public:
   static uint32_t wheel(byte index);
   void clear();
   void stealth(bool status);
+  void setBrightness(uint8_t brightness);
 };
 
 extern _leds &Leds;
