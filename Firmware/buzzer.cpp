@@ -60,7 +60,7 @@ void _buzzer::playFrequency(int frequency)
     return sound_off();
 
   // disable sound when out of audible range
-  if (frequency < 20 || frequency > 200000)
+  if (frequency < 20 || frequency > 20000)
     return sound_off();
 
   sound_on();
